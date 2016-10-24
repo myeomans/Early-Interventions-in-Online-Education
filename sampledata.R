@@ -68,6 +68,9 @@ data<-data.frame(start_day=samp(1:40),
 #######################################################
 data[,paste0("mrmi",1:10)]<-samp(1:5)
 data[,paste0("olei",1:13)]<-samp(0:1)
+ 
+# Rene : any thoughts on how to extract measures from these scale batteries?
+
 #######################################################
 # Treatment Variables
 #######################################################
