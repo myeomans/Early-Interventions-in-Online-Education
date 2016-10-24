@@ -1,2 +1,80 @@
-schools<-c("Stanford","Havard","MIT")
+#################################################################
+# Assigner
+samp<-function(x){
+  sample(x, 5000, replace=T)
+}
+# Variable Sets
+times<-(0:10)
+texts<-paste0("sampletext",1:50)
+YNU<-c("Yes","No","Unsure")
+intend<-c("All","Most","Few","No")
+education<-c("doctor","master","profess","bachelor","somecollege",
+             "associate","highschool","middleschool","elementary","none")
+#################################################################
+data<-data.frame(start_day=samp(1:40),
+                 start_hour=samp(0:23),
+                 school=samp(c("Stanford","Havard","MIT")),
+                 course=samp(c("basket_weaving","intro_to_spanish","nuclear_physics")),
+                 intend.verify=samp(YNU),
+                 intend.assess=samp(intend),
+                 intend.lectur=samp(intend),
+                 intend.forums=samp(c("Post-Hi","Post-Lo","Read","None")),
+                 intend.hrweek=samp(1:10),
+                 moocs.complete=samp(0:10),
+                 goal.setting=samp(1:5),
+                 familiarity=samp(1:5),
+                 gender.male=samp(0:1),
+                 birth.year=samp(1950:2000),
+                 employment=samp(c("employed","unemployed","student","retired")),
+                 teacher=samp(YNU),
+                 school.enrol=samp(YNU),
+                 education.own=samp(education),
+                 education.parent=samp(education),
+                 english=samp(1:5),
+                 country=samp(c("Canada","Seychelles","Singapore")),
+                 worried=same(1:5),
+                 hispanic=samp(c("yes","mexican","no")),
+                 race=samp(c("black","white","amind","asian","nhopi")),
+                 teacher.held=samp(c("teach","admin","coach","data")),
+                 teacher.related=samp(YNU),
+                 teacher.current=samp(c("Yes","No")),
+                 teacher.level=samp(c("primary","secondary","college","outside")),
+                 industry.current=samp(1:12),
+                 industry.past=samp(1:12),
+                 industry.future=samp(1:12),
+                 industry.if=samp(1:12),
+                 industry.job=samp(1:12),
+                 student.fulltime=samp(c("Yes","No")),
+                 student.similar=samp(1:4),
+                 student.level=samp(c("primary","middle","secondary","2year","4year","grad")),
+                 interview=samp(c("Yes","No")),
+                 harvard=samp(1:4),
+                 treated=samp(c(0,rep(1,10))),
+                 affirm=samp(0:1),
+                 plan=samp(c(0,1,1)),
+                 affirm.text1=samp(texts),
+                 affirm.time1=samp(times),
+                 affirm.text2=samp(texts),
+                 affirm.time2=samp(times),
+                 affirm.text3=samp(texts),
+                 affirm.time3=samp(times),
+                 plans.text=samp(texts),
+                 plans.time1=samp(times),
+                 plans.time2=samp(times),
+                 plans.short=samp(c(0,1)),
+                 prob.complete=samp(0:100))
+#######################################################
+# Scale Batteries
+#######################################################
+data[,paste0("mrmi",1:10)]<-samp(1:5)
+data[,paste0("olei",1:13)]<-samp(0:1)
+#######################################################
+# Treatment Variables
+#######################################################
+data$plans.long<-1-data$plans.short
 
+data[data$teacher==0,grepl("teacher.",names(data))]<-NA
+data[data$student==0,grepl("student.",names(data))]<-NA
+data[data$affirm==0,grepl("affirm",names(data))]<-NA
+data[data$plans==0,grepl("plans.",names(data))]<-NA
+#######################################################
