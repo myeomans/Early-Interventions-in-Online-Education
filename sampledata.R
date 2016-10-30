@@ -1,7 +1,7 @@
 #################################################################
 # Assigner
 set.seed(123456)
-samp<-function(x, n=1e6){
+samp<-function(x, n=5e6){
   sample(x, n, replace=T)
 }
 
@@ -58,8 +58,8 @@ data<-data.frame(school=samp(1:3),
                  webservice_call_complete = samp(0:1),
                  affirm=samp(0:1),
                  plans=samp(0:2),
-                 intend_lecture=samp(1:4),
-                 intend_assess=samp(1:4),
+                 intent_lecture=samp(1:4),
+                 intent_assess=samp(1:4),
                  hours=samp(0:50),
                  crs_finish=samp(0:30),
                  goal_setting=samp(1:5),

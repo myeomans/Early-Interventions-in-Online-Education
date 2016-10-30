@@ -2,22 +2,46 @@ require(lme4)
 
 load("simdat.rda")
 
+#######################################################
+# Define subgroups and strata
+#######################################################
 data$is_fluent = as.numeric(data$fluent == 5)
 data$highHDI = as.numeric(data$HDI > 0.7)
 
+data$strata_intent_assess = ifelse(data$intent_assess>2, 1, 0)
+data$strata_hours = ifelse(data$hours>5, 1, 0)
+data$strata_crs_finish = ifelse(data$crs_finish>3, 2, ifelse(data$crs_finish>0, 1, 0))
+data$strata_educ = ifelse(data$educ<4, 2, ifelse(data$educ==4, 1, 0))
 
-
-
+#######################################################
+# Model Specification
+#######################################################
+# Binary Outcomes: cert_verified, cert_basic, upgrade_verified, subsequent_enroll
+# Percentage Outcomes: course_progress
+# Condition Indicators: affirm, plans_long, plans_short
+# Stratification: strata_intent_assess, strata_hours, strata_crs_finish, strata_educ
+# Additional Nesting: school, course
 
 models<-list()
+models[["simple"]] = glmer(cert_verified ~ affirm * highHDI + (plans_long + plans_short) * is_fluent + 
+                             (1 | school/course) + (1 | strata_intent_assess) + 
+                             (1 | strata_hours) + (1 | strata_crs_finish) + (1 | strata_educ), 
+                           family = "binomial", data = data)
 
-# Full Sample
-models[["affirm"]]<-lmer(certified~affirm+(1|course),family="binomial",data=test.data)
-models[["affirm"]]<-lmer(certified~affirm+(1|course),family="binomial",data=test.data[low.dev,])
-# All Students
-models[["plans"]]<-lmer(certified~plans+(1|course),family="binomial",data=test.data[fluent,])
-models[["short.plans"]]<-lmer(certified~short.plans+(1|course),family="binomial",data=test.data[fluent,])
-models[["long.plans"]]<-lmer(certified~long.plans+(1|course),family="binomial",data=test.data[fluent,])
-models[["shortlong"]]<-lmer(certified~short.plans+(1|course),family="binomial",data=test.data[fluent&(test.data$plans==1),])
+models[["combined"]] = glmer(cert_verified ~ affirm * highHDI * (plans_long + plans_short) * is_fluent + 
+                             (1 | school/course) + (1 | strata_intent_assess) + 
+                             (1 | strata_hours) + (1 | strata_crs_finish) + (1 | strata_educ), 
+                           family = "binomial", data = data)
 
-models[["all"]]<-lmer(certified~affirm*(short.plans+long.plans)+(1|course),family="binomial",data=test.data)
+summary(models[["simple"]])
+
+# # Full Sample
+# models[["affirm"]]<-lmer(certified~affirm+(1|course),family="binomial",data=test.data)
+# models[["affirm"]]<-lmer(certified~affirm+(1|course),family="binomial",data=test.data[low.dev,])
+# # All Students
+# models[["plans"]]<-lmer(certified~plans+(1|course),family="binomial",data=test.data[fluent,])
+# models[["short.plans"]]<-lmer(certified~short.plans+(1|course),family="binomial",data=test.data[fluent,])
+# models[["long.plans"]]<-lmer(certified~long.plans+(1|course),family="binomial",data=test.data[fluent,])
+# models[["shortlong"]]<-lmer(certified~short.plans+(1|course),family="binomial",data=test.data[fluent&(test.data$plans==1),])
+# 
+# models[["all"]]<-lmer(certified~affirm*(short.plans+long.plans)+(1|course),family="binomial",data=test.data)
