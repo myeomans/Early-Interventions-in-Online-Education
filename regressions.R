@@ -1,8 +1,13 @@
 require(lme4)
 
-test.data<-data[(data$treated==1)&(data$start_day<32),]
-fluent<-(test.data$fluency==5)
-low.dev<-(test.data$HDI<0.7)
+load("simdat.rda")
+
+data$is_fluent = as.numeric(data$fluent == 5)
+data$highHDI = as.numeric(data$HDI > 0.7)
+
+
+
+
 
 models<-list()
 
