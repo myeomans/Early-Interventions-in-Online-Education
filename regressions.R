@@ -12,6 +12,7 @@ data$strata_intent_assess = ifelse(data$intent_assess>2, 1, 0)
 data$strata_hours = ifelse(data$hours>5, 1, 0)
 data$strata_crs_finish = ifelse(data$crs_finish>3, 2, ifelse(data$crs_finish>0, 1, 0))
 data$strata_educ = ifelse(data$educ<4, 2, ifelse(data$educ==4, 1, 0))
+data$strata = with(data, paste(strata_intent_assess, strata_hours, strata_crs_finish, strata_educ))
 
 #######################################################
 # Model Specification
@@ -19,21 +20,33 @@ data$strata_educ = ifelse(data$educ<4, 2, ifelse(data$educ==4, 1, 0))
 # Binary Outcomes: cert_verified, cert_basic, upgrade_verified, subsequent_enroll
 # Percentage Outcomes: course_progress
 # Condition Indicators: affirm, plans_long, plans_short
-# Stratification: strata_intent_assess, strata_hours, strata_crs_finish, strata_educ
+# Stratification: strata {strata_intent_assess, strata_hours, strata_crs_finish, strata_educ}
 # Additional Nesting: school, course
 
+
 models<-list()
-models[["simple"]] = glmer(cert_verified ~ affirm * highHDI + (plans_long + plans_short) * is_fluent + 
-                             (1 | school/course) + (1 | strata_intent_assess) + 
-                             (1 | strata_hours) + (1 | strata_crs_finish) + (1 | strata_educ), 
-                           family = "binomial", data = data)
 
-models[["combined"]] = glmer(cert_verified ~ affirm * highHDI * (plans_long + plans_short) * is_fluent + 
-                             (1 | school/course) + (1 | strata_intent_assess) + 
-                             (1 | strata_hours) + (1 | strata_crs_finish) + (1 | strata_educ), 
-                           family = "binomial", data = data)
+# Using random effects
+models[["glmer.verified.simple"]] = cert_verified ~ affirm * highHDI + (plans_long + plans_short) * is_fluent + 
+                             (1 | school/course) + (1 | strata)
 
-summary(models[["simple"]])
+fit.glmer = glmer(models[["glmer.verified.simple"]], 
+              data = data, 
+              family = "binomial", 
+              nAGQ = 0, 
+              control = glmerControl(optimizer = "nloptwrap"))
+
+summary(fit.glmer)
+
+# Using fixed effects
+models[["glm.verified.simple"]] = cert_verified ~ affirm * highHDI + (plans_long + plans_short) * is_fluent + 
+  factor(school) + factor(course) + strata
+
+fit.glm = glm(models[["glm.verified.simple"]], 
+            data = data, 
+            family = "binomial")
+            
+summary(fit.glm)
 
 # # Full Sample
 # models[["affirm"]]<-lmer(certified~affirm+(1|course),family="binomial",data=test.data)
