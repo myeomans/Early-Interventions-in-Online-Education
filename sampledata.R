@@ -1,7 +1,10 @@
+library(dplyr)
+set.seed(123456)
+N = 5e5
+
 #################################################################
 # Assigner
-set.seed(123456)
-samp<-function(x, n=5e6){
+samp = function(x, n=N){
   sample(x, n, replace=T)
 }
 
@@ -53,15 +56,15 @@ samp<-function(x, n=5e6){
 # prob.complete=samp(0:100))
 
 #################################################################
-data<-data.frame(school=samp(1:3),
-                 course=samp(1:20),
-                 webservice_call_complete = samp(0:1),
-                 affirm=samp(0:1),
-                 plans=samp(0:2),
+data = data.frame(school=samp(1:3),
+                 course=samp(1:25),
+                 webservice_call_complete = samp(rep(0:1, c(1,99))),
+                 # affirm=samp(0:1),
+                 # plans=samp(0:2),
                  intent_lecture=samp(1:4),
-                 intent_assess=samp(1:4),
-                 hours=samp(0:50),
-                 crs_finish=samp(0:30),
+                 intent_assess=samp(rep(1:4, c(30,10,10,50))),
+                 hours=rpois(N, 6), #samp(0:50),
+                 crs_finish=rpois(N, 1.5), #samp(0:30),
                  goal_setting=samp(1:5),
                  fam=samp(1:5),
                  sex=samp(1:3),
@@ -69,7 +72,7 @@ data<-data.frame(school=samp(1:3),
                  empstatus=samp(1:5),
                  teach=samp(c(0,1,13)),
                  school=samp(0:1),
-                 educ=samp(1:10),
+                 educ=sample(1:10, N, replace=T, prob=c(.1, .1, .1, .4, rep(.05, 6))), #samp(1:10),
                  educ_parents=samp(1:10),
                  fluent=samp(1:5),
                  pob=samp(c(0:193, 580, 1357)),
@@ -116,12 +119,37 @@ data<-data.frame(school=samp(1:3),
                  likely_complete_1=samp(0:100),
                  survey_timestamp=samp(1470009600:1475280000),
                  first_activity_timestamp=samp(1470009600:1475280000),
-                 course_start_timestamp=samp(1470009600:1475280000),
-                 cert_verified=samp(0:1),
-                 cert_basic=samp(0:1),
-                 upgrade_verified=samp(0:1),
-                 subsequent_enroll=samp(0:1),
-                 course_progress=samp(0:100))
+                 course_start_timestamp=samp(1470009600:1475280000)
+                 # cert_verified=samp(0:1),
+                 # cert_basic=samp(0:1),
+                 # upgrade_verified=samp(0:1),
+                 # subsequent_enroll=samp(0:1),
+                 # course_progress=samp(0:100)
+)
+
+#######################################################
+# Simulate Stratified Assignment
+#######################################################
+
+data$strata_intent_assess = ifelse(data$intent_assess>2, 1, 0)
+data$strata_hours = ifelse(data$hours>5, 1, 0)
+data$strata_crs_finish = ifelse(data$crs_finish>3, 2, ifelse(data$crs_finish>0, 1, 0))
+data$strata_educ = ifelse(data$educ<4, 2, ifelse(data$educ==4, 1, 0))
+data$strata = with(data, paste(strata_intent_assess, strata_hours, strata_crs_finish, strata_educ))
+
+data = data %>% 
+  group_by(strata) %>%
+  mutate(c = c(rep(1:(n() %/% 6), each=6), rep(1 + n() %/% 6, n() %% 6))) %>%
+  group_by(strata, c) %>%
+  mutate(
+    cond = sample(1:6, size = n()),
+    affirm = as.numeric(cond>3),
+    plans = cond %% 3
+  )
+
+#######################################################
+# Remove Counterfactual Data
+#######################################################
 
 data[data$affirm == 0, grepl("affirm_", names(data))] = NA
 data[data$plans != 2, grepl("longplans", names(data))] = NA
@@ -131,10 +159,7 @@ data[data$plans != 1, grepl("shortplans", names(data))] = NA
 # Exclusions: Exposure & Timing
 #######################################################
 # Learner was assigned correctly and exposed
-data = subset(data, webservice_call_complete == 1 & 
-                (!is.na(affirm) | !is.na(plans)) &
-                rowSums(cbind(affirm_choice_time_3, shortplans_time_3, 
-                              longplans_time_3), na.rm = T) > 0)
+data = subset(data, webservice_call_complete == 1 & (!is.na(affirm) | !is.na(plans)))
 
 # Learner entered course within the first 14 days of course launch
 data = subset(data, (first_activity_timestamp-course_start_timestamp)/(60*60*24) < 14)
@@ -143,15 +168,38 @@ data = subset(data, (first_activity_timestamp-course_start_timestamp)/(60*60*24)
 data = subset(data, (survey_timestamp-first_activity_timestamp)/(60*60) < 1)
 
 #######################################################
-# Treatment Variables
+# Treatment Variables & Subgroups
 #######################################################
 data$plans_long = ifelse(data$plans == 2, 1, 0)
 data$plans_short = ifelse(data$plans == 1, 1, 0)
 
-#######################################################
-# Merge with HDI data
-#######################################################
 data$HDI = sample(30:98, nrow(data), replace = T)/100
+data$highHDI = as.numeric(data$HDI > 0.7)
+
+data$is_fluent = as.numeric(data$fluent == 5)
+
+#######################################################
+# Simulate Treatment Effects
+#######################################################
+
+baseline = .1
+eff_affirm = .1
+eff_plan_st = .05
+eff_plan_lg = .1
+error_sd = .025
+
+data$y_prob = rnorm(nrow(data), baseline, error_sd) +
+  eff_affirm * data$affirm * (1 - data$highHDI) + 
+  eff_plan_st * data$plans_short * data$is_fluent + 
+  eff_plan_lg * data$plans_long * data$is_fluent
+
+data$y_prob[data$y_prob<0] = 0
+
+data$cert_verified = rbinom(nrow(data), 1, data$y_prob)
+data$cert_basic = rbinom(nrow(data), 1, data$y_prob)
+data$subsequent_enroll = rbinom(nrow(data), 1, data$y_prob)
+data$upgrade_verified = rbinom(nrow(data), 1, data$y_prob)
+data$course_progress = sample(0:100, nrow(data), replace=T) # suppose no treatment effect
 
 #######################################################
 

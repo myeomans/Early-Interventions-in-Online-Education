@@ -3,18 +3,6 @@ require(lme4)
 load("simdat.rda")
 
 #######################################################
-# Define subgroups and strata
-#######################################################
-data$is_fluent = as.numeric(data$fluent == 5)
-data$highHDI = as.numeric(data$HDI > 0.7)
-
-data$strata_intent_assess = ifelse(data$intent_assess>2, 1, 0)
-data$strata_hours = ifelse(data$hours>5, 1, 0)
-data$strata_crs_finish = ifelse(data$crs_finish>3, 2, ifelse(data$crs_finish>0, 1, 0))
-data$strata_educ = ifelse(data$educ<4, 2, ifelse(data$educ==4, 1, 0))
-data$strata = with(data, paste(strata_intent_assess, strata_hours, strata_crs_finish, strata_educ))
-
-#######################################################
 # Model Specification
 #######################################################
 # Binary Outcomes: cert_verified, cert_basic, upgrade_verified, subsequent_enroll
