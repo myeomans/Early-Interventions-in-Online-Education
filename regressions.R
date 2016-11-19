@@ -26,12 +26,12 @@ models[["affirmHDI"]] =
   Y ~ affirm * highHDI + (plans_long + plans_short) + 
   intent_assess + hours + crs_finish + educ + (1 | school/course) + (1 | strata)
 
-# Plans effect by fluency
+# Plans effect by school
 models[["plans"]] = 
   Y ~ affirm + (plans_long + plans_short) * school +
   intent_assess + hours + crs_finish + educ + (1 | school/course) + (1 | strata)
 
-# Affirmation and plans effects with interactions
+# Affirmation and plans effects by HDI region
 models[["interaction"]] = 
   Y ~ affirm * highHDI * (plans_long + plans_short) + 
   intent_assess + hours + crs_finish + educ + (1 | school/course) + (1 | strata)
@@ -57,6 +57,42 @@ fit.glmer = glmer(models[["simple"]],
                   nAGQ = 0, 
                   control = glmerControl(optimizer = "nloptwrap"))
 summary(fit.glmer)
+
+
+### Planned analyses for Affirmation ###
+# Affirmation and HDI: effect for low/high HDI, and by 5 bins
+models[["affirm.hdi2"]] = 
+  Y ~ affirm * highHDI + (plans_long + plans_short) + 
+  intent_assess + hours + crs_finish + educ + (1 | school/course) + (1 | strata)
+
+models[["affirm.hdi5"]] = 
+  Y ~ affirm * cut_number(HDI, 5) + (plans_long + plans_short) + 
+  intent_assess + hours + crs_finish + educ + (1 | school/course) + (1 | strata)
+
+# Affirmation and HDI based on country social identity threat and language
+models[["affirm.csit"]] = 
+  Y ~ affirm * (HDI + scale(threat_country)) + (plans_long + plans_short) + 
+  intent_assess + hours + crs_finish + educ + (1 | school/course) + (1 | strata)
+
+models[["affirm.lang"]] = 
+  Y ~ affirm * (HDI + scale(fluent)) + (plans_long + plans_short) + 
+  intent_assess + hours + crs_finish + educ + (1 | school/course) + (1 | strata)
+
+# Affirmation: effect for women/men
+models[["affirm.sex"]] = 
+  Y ~ affirm * sex + (plans_long + plans_short) + 
+  intent_assess + hours + crs_finish + educ + (1 | school/course) + (1 | strata)
+
+# Affirmation: effect for low SES (based on parental education)
+models[["affirm.sex"]] = 
+  Y ~ affirm * scale(10-educ_parents) + (plans_long + plans_short) + 
+  intent_assess + hours + crs_finish + educ + (1 | school/course) + (1 | strata)
+
+# Affirmation: effect for US racial-ethnic minorities (majority = white/asian/non-hispanic)
+models[["affirm.minority"]] = 
+  Y ~ affirm * I(us_race%in%c(1,4) & us_ethnicity==1) + (plans_long + plans_short) + 
+  intent_assess + hours + crs_finish + educ + (1 | school/course) + (1 | strata)
+
 
 
 # # Using fixed effects
