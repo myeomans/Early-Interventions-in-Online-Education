@@ -1,6 +1,6 @@
 library(dplyr)
 set.seed(123456)
-N = 5e5
+N = 1e5
 
 #################################################################
 # Assigner
@@ -57,7 +57,7 @@ samp = function(x, n=N){
 
 #################################################################
 data = data.frame(school=samp(1:3),
-                 course=samp(1:25),
+                 course=samp(1:20),
                  webservice_call_complete = samp(rep(0:1, c(1,99))),
                  # affirm=samp(0:1),
                  # plans=samp(0:2),
@@ -116,10 +116,10 @@ data = data.frame(school=samp(1:3),
                  shortplanswrite_time_3=samp(0:600),
                  longplans_time_3=samp(0:600),
                  longplanswrite_time_3=samp(0:600),
-                 likely_complete_1=samp(0:100),
                  survey_timestamp=samp(1470009600:1475280000),
                  first_activity_timestamp=samp(1470009600:1475280000),
                  course_start_timestamp=samp(1470009600:1475280000)
+                 # likely_complete_1=samp(0:100),
                  # cert_verified=samp(0:1),
                  # cert_basic=samp(0:1),
                  # upgrade_verified=samp(0:1),
@@ -182,16 +182,23 @@ data$is_fluent = as.numeric(data$fluent == 5)
 # Simulate Treatment Effects
 #######################################################
 
-baseline = .1
-eff_affirm = .1
-eff_plan_st = .05
-eff_plan_lg = .1
-error_sd = .025
+baseline = .05
+eff_affirm = .05
+eff_plan_st = .025
+eff_plan_lg = .05
+eff_inter = .025
+error_sd = .1
 
-data$y_prob = rnorm(nrow(data), baseline, error_sd) +
-  eff_affirm * data$affirm * (1 - data$highHDI) + 
-  eff_plan_st * data$plans_short * data$is_fluent + 
-  eff_plan_lg * data$plans_long * data$is_fluent
+# Encode strata covariates, and school/course effects in sigmoid
+sig = 1/(1+exp(-rowMeans(scale(
+  ungroup(data) %>% select(intent_assess, hours, crs_finish, educ, school, course) %>% mutate(educ=10-educ) ))))
+
+data$y_prob = baseline + sig/5 + # baseline plus covariate contribution
+  eff_affirm * data$affirm * (1 - data$highHDI) + # affirm effect in Low HDI
+  eff_plan_st * data$plans_short + # srt plans effect
+  eff_plan_lg * data$plans_long + # lng plans effect
+  eff_inter * data$affirm * data$plans_long + # treatment interaction effect
+  rnorm(nrow(data), 0, error_sd) # gaussian error term
 
 data$y_prob[data$y_prob<0] = 0
 
@@ -199,7 +206,8 @@ data$cert_verified = rbinom(nrow(data), 1, data$y_prob)
 data$cert_basic = rbinom(nrow(data), 1, data$y_prob)
 data$subsequent_enroll = rbinom(nrow(data), 1, data$y_prob)
 data$upgrade_verified = rbinom(nrow(data), 1, data$y_prob)
-data$course_progress = sample(0:100, nrow(data), replace=T) # suppose no treatment effect
+data$course_progress = 100 * data$y_prob
+data$likely_complete_1 = 100 * data$y_prob
 
 #######################################################
 
