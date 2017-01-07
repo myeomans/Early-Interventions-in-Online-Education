@@ -14,6 +14,8 @@ load("simdat.rda")
 
 models<-list()
 
+
+
 #### Using mixed-effects model ####
 
 # Overall main and interaction effects

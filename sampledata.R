@@ -156,18 +156,6 @@ data[data$plans != 2, grepl("longplans", names(data))] = NA
 data[data$plans != 1, grepl("shortplans", names(data))] = NA
 
 #######################################################
-# Exclusions: Exposure & Timing
-#######################################################
-# Learner was assigned correctly and exposed
-data = subset(data, webservice_call_complete == 1 & (!is.na(affirm) | !is.na(plans)))
-
-# Learner entered course within the first 14 days of course launch
-data = subset(data, (first_activity_timestamp-course_start_timestamp)/(60*60*24) < 14)
-
-# Learner started the survey within the first hour of entering the course
-data = subset(data, (survey_timestamp-first_activity_timestamp)/(60*60) < 1)
-
-#######################################################
 # Treatment Variables & Subgroups
 #######################################################
 data$plans_long = ifelse(data$plans == 2, 1, 0)
@@ -208,7 +196,19 @@ data$subsequent_enroll = rbinom(nrow(data), 1, data$y_prob)
 data$upgrade_verified = rbinom(nrow(data), 1, data$y_prob)
 data$course_progress = 100 * data$y_prob
 data$likely_complete_1 = 100 * data$y_prob
+#######################################################
+
 
 #######################################################
+# Exclusions: Exposure & Timing
+#######################################################
+# Learner was assigned correctly and exposed
+data$exposed.to.treat<-1*(data$webservice_call_complete == 1)&(!is.na(affirm))&(!is.na(plans))
+# Learner started the course in the first 14 days
+data$start.day<-(data$first_activity_timestamp-data$course_start_timestamp)/(60*60*24)
+# Learner started the survey within the first hour of entering the course
+data$survey.delay<-(data$survey_timestamp-data$first_activity_timestamp)/(60*60) 
+#######################################################
+
 
 save(data, file="simdat.rda")
