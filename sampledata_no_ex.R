@@ -1,23 +1,31 @@
+#######################################################
+#
+#  Preregistration for "Joint Interventions at Scale"
+#  Data Generation
+#######################################################
+
+#setwd("~/git/Joint-Interventions-At-Scale/")
 library(dplyr)
 set.seed(123456)
+
+# Number of observations to simulate
 N = 1e5
 
-#################################################################
-# Assigner
-samp = function(x, n=N){
+# Sampling function
+samp = function(x, n = N){
   sample(x, n, replace=T)
 }
 
-#################################################################
+#######################################################
+# Simulate Initial Dataset
+#######################################################
 data = data.frame(school=samp(1:3),
                   course=samp(1:20),
                   webservice_call_complete = samp(rep(0:1, c(1,99))),
-                  # affirm=samp(0:1), 
-                  # plans=samp(0:2),
                   intent_lecture=samp(1:4),
                   intent_assess=samp(rep(1:4, c(30,10,10,50))),
-                  hours=rpois(N, 6), #samp(0:50),
-                  crs_finish=rpois(N, 1.5), #samp(0:30),
+                  hours=rpois(N, 6),
+                  crs_finish=rpois(N, 1.5),
                   goal_setting=samp(1:5),
                   fam=samp(1:5),
                   sex=samp(1:3),
@@ -25,7 +33,7 @@ data = data.frame(school=samp(1:3),
                   empstatus=samp(1:5),
                   teach=samp(c(0,1,13)),
                   school=samp(0:1),
-                  educ=sample(1:10, N, replace=T, prob=c(.1, .1, .1, .4, rep(.05, 6))), #samp(1:10),
+                  educ=sample(1:10, N, replace=T, prob=c(.1, .1, .1, .4, rep(.05, 6))),
                   educ_parents=samp(1:10),
                   fluent=samp(1:5),
                   pob=samp(c(0:193, 580, 1357)),
@@ -72,27 +80,22 @@ data = data.frame(school=samp(1:3),
                   survey_timestamp=samp(1470009600:1475280000),
                   first_activity_timestamp=samp(1470009600:1475280000),
                   course_start_timestamp=samp(1470009600:1475280000)
-                  ####################################
-                  # Outcomes
-                  ####################################
-                  # likely_complete_1=samp(0:100),
-                  # cert_verified=samp(0:1),
-                  # cert_basic=samp(0:1),
-                  # upgrade_verified=samp(0:1),
-                  # subsequent_enroll=samp(0:1),
-                  # course_progress=samp(0:100)
 )
 
 #######################################################
 # Simulate Stratified Assignment
 #######################################################
 
+# Define strata
 data$strata_intent_assess = ifelse(data$intent_assess>2, 1, 0)
 data$strata_hours = ifelse(data$hours>5, 1, 0)
 data$strata_crs_finish = ifelse(data$crs_finish>3, 2, ifelse(data$crs_finish>0, 1, 0))
 data$strata_educ = ifelse(data$educ<4, 2, ifelse(data$educ==4, 1, 0))
+
+# Encode strata in single variable
 data$strata = with(data, paste(strata_intent_assess, strata_hours, strata_crs_finish, strata_educ))
 
+# Simulate random assignment within each strata
 data = data %>% 
   group_by(strata) %>%
   mutate(c = c(rep(1:(n() %/% 6), each=6), rep(1 + n() %/% 6, n() %% 6))) %>%
@@ -112,18 +115,21 @@ data[data$plans != 2, grepl("longplans", names(data))] = NA
 data[data$plans != 1, grepl("shortplans", names(data))] = NA
 
 #######################################################
-# Treatment Variables & Subgroups
+# Define Treatment Variables & Subgroups
 #######################################################
+
 data$plans_long = ifelse(data$plans == 2, 1, 0)
 data$plans_short = ifelse(data$plans == 1, 1, 0)
 
+# Simulate Human Development Index (HDI) and Discretize (high/low)
 data$HDI = sample(30:98, nrow(data), replace = T)/100
 data$highHDI = as.numeric(data$HDI > 0.7)
 
+# Binary indicator for fluent English speakers
 data$is_fluent = as.numeric(data$fluent == 5)
 
 #######################################################
-# Simulate Treatment Effects
+# Simulate Outcome Measures with Treatment Effects
 #######################################################
 
 baseline = .05
@@ -133,25 +139,34 @@ eff_plan_lg = .05
 eff_inter = .025
 error_sd = .1
 
-# Encode strata covariates, and school/course effects in sigmoid
+# Encode strata covariates and school/course effects in sigmoid
 sig = 1/(1+exp(-rowMeans(scale(
   ungroup(data) %>% select(intent_assess, hours, crs_finish, educ, school, course) %>% mutate(educ=10-educ) ))))
 
-data$y_prob = baseline + sig/5 + # baseline plus covariate contribution
+# Simulate probability of certification
+data$y_prob = baseline + 
+  sig / 5 + # baseline plus covariate contribution
   eff_affirm * data$affirm * (1 - data$highHDI) + # affirm effect in Low HDI
   eff_plan_st * data$plans_short + # srt plans effect
   eff_plan_lg * data$plans_long + # lng plans effect
   eff_inter * data$affirm * data$plans_long + # treatment interaction effect
   rnorm(nrow(data), 0, error_sd) # gaussian error term
 
+# Ensure probability is in [0,1]
 data$y_prob[data$y_prob<0] = 0
+data$y_prob[data$y_prob>1] = 1
 
+# Generate All Outcome Measures Based on Pr(certification)
 data$cert_verified = rbinom(nrow(data), 1, data$y_prob)
 data$cert_basic = rbinom(nrow(data), 1, data$y_prob)
 data$subsequent_enroll = rbinom(nrow(data), 1, data$y_prob)
 data$upgrade_verified = rbinom(nrow(data), 1, data$y_prob)
 data$course_progress = 100 * data$y_prob
 data$likely_complete_1 = 100 * data$y_prob
+
+#######################################################
+# Save Simulated Dataset
 #######################################################
 
 save(data, file="simdat.rda")
+#######################################################

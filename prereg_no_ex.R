@@ -1,7 +1,7 @@
 #######################################################
 #
 #  Preregistration for "Joint Interventions at Scale"
-#
+#  Analysis Plan
 #######################################################
 
 #setwd("~/git/Joint-Interventions-At-Scale/")
