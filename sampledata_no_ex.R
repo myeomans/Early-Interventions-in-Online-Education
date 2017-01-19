@@ -6,7 +6,7 @@
 
 #setwd("~/git/Joint-Interventions-At-Scale/")
 library(dplyr)
-set.seed(123456)
+set.seed(02138)
 
 # Number of observations to simulate
 N = 1e5
