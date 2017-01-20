@@ -1,10 +1,14 @@
-################################################
+#######################################################
 #
-# Discovery of Hetergeneous treatment effects using LASSOplus
-#
-# JIAS, January 2017 
-#
+#  Preregistration for "Joint Interventions at Scale"
+#  Discovery of Heterogeneous Treatment Effects
+#######################################################
+
+#setwd("~/git/Joint-Interventions-At-Scale/")
 require(sparsereg)
+
+load("simdat.rda")
+
 ################################################
 covariates<-c("course","verify.before","pre.enrol",
               "start.day","age","sex","USA","HDI",
@@ -14,6 +18,7 @@ covariates<-c("course","verify.before","pre.enrol",
               "MOOC_enrol", "MOOC_finish")
 treatments<-c("control","affirm","plans_short","plans_long")
 HTEdata<-data[(data$prereg==1),c(covariates,treatments,"certified")]
+
 ################################################
 HTEdata<-HTEdata[(rowMeans(is.na(HTEdata))==0),]
 SPR<-sparsereg(y=HTEdata$certified, 

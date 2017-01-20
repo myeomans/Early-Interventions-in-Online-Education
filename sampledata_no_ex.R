@@ -20,7 +20,7 @@ samp = function(x, n = N){
 # Simulate Initial Dataset
 #######################################################
 data = data.frame(school=samp(1:3),
-                  course=samp(1:20),
+                  course=samp(1:35),
                   webservice_call_complete = samp(rep(0:1, c(1,99))),
                   intent_lecture=samp(1:4),
                   intent_assess=samp(rep(1:4, c(30,10,10,50))),
@@ -124,9 +124,15 @@ data$plans_short = ifelse(data$plans == 1, 1, 0)
 # Simulate Human Development Index (HDI) and Discretize (high/low)
 data$HDI = sample(30:98, nrow(data), replace = T)/100
 data$highHDI = as.numeric(data$HDI > 0.7)
+data$HDI4 = cut(data$HDI, 
+  breaks = c(0, .55, .7, .8, 1), 
+  labels = c("low", "medium", "high", "v.high"))
 
 # Binary indicator for fluent English speakers
 data$is_fluent = as.numeric(data$fluent == 5)
+
+# Binary indicator for self-paced (vs. cohort-based) courses
+data$is_selfpaced = data$course %in% (1:5)
 
 #######################################################
 # Simulate Outcome Measures with Treatment Effects

@@ -17,18 +17,20 @@ load("simdat.rda")
 #  Survey software records all learners who started the course survey.
 #  We impose a set of exclusion criteria to define our sample of interest:
 #  a. The learner must have completed enough of the survey to be randomized and exposed to condition
-#  b. The learner must have started the course in the first 14 days
+#  b. The learner must have started the course in the first 14 days (not applicable for self-paced courses)
 #  c. The learner must have started the survey within the first hour of entering the course
 
 data = mutate(data,
   exposed.to.treat = (webservice_call_complete == 1) & (!is.na(affirm)) & (!is.na(plans)), # a.
   start.day = (first_activity_timestamp - course_start_timestamp) / (60*60*24), # b.
   survey.delay = (survey_timestamp - first_activity_timestamp) / (60*60), # c.
-  itt.sample = exposed.to.treat & (start.day < 15) & (survey.delay < 1)
+  itt.sample = exposed.to.treat & (is_selfpaced | start.day < 15) & (survey.delay < 1)
 )
 
 samples = list()
-samples[["baseline"]] = data$itt.sample
+samples[["baseline"]] = data$itt.sample # baseline (a., b., & c.)
+samples[["exposed"]] = data$exposed.to.treat # all exposed (only a.)
+samples[["HarvardMIT"]] = data$school %in% (1:2) # all Harvard/MIT courses
 
 #######################################################
 #### Stratified and Nested Design ####
@@ -44,7 +46,7 @@ samples[["baseline"]] = data$itt.sample
 # Additional nesting variables: school, course
 #
 # In every model we control for strata covariates; and nesting within strata, course and school
-course.strata = " + intent_assess + hours + crs_finish + educ + (1 | school/course) + (1 | strata)"
+strata = " + intent_assess + hours + crs_finish + educ + (1 | school/course) + (1 | strata)"
 
 #######################################################
 #### Randomized Treatments ####
@@ -72,22 +74,40 @@ models[["simple"]] = "affirm * (plans_long + plans_short) "
 ### Planned analyses for Affirmation ###
 #######################################################
 
-# Affirmation and HDI: effect for low/high HDI, and by 5 bins
+### Primary Analysis ###
+# Replication: Affirmation effect for low vs. high HDI countries
+# Expect: affirmation supports low-HDI learners
 models[["affirm.hdi2"]] = " affirm * highHDI + (plans_long + plans_short)"
-models[["affirm.hdi5"]] = " affirm * cut_number(HDI, 5) + (plans_long + plans_short)"
 
-# Affirmation and HDI based on country social identity threat and language
-models[["affirm.csit"]] = " affirm * (HDI + scale(threat_country)) + (plans_long + plans_short)"
-models[["affirm.lang"]] = " affirm * (HDI + scale(fluent)) + (plans_long + plans_short)"
+# Zooming in: Affirmation effect in four HDI bins
+# Expect: affirmation supports low-HDI learners the most, followed by medium-HDI learners
+models[["affirm.hdi4"]] = " affirm * HDI4 + (plans_long + plans_short)"
 
-# Affirmation: effect for women/men
-models[["affirm.sex"]] = " affirm * sex + (plans_long + plans_short) "
+### Secondary Analysis - Theory-driven Extensions ###
 
-# Affirmation: effect for low SES (based on parental education)
-models[["affirm.sex"]] = " affirm * scale(10-educ_parents) + (plans_long + plans_short)"
+# Affirmation effect by socioeconomic status (based on parental education)
+# Expect: affirmation supports low-SES learners
+models[["affirm.ses"]] = " affirm * scale(10-educ_parents) + (plans_long + plans_short)"
 
-# Affirmation: effect for US racial-ethnic minorities (majority = white/asian/non-hispanic)
-models[["affirm.minority"]] = " affirm * I(us_race%in%c(1,4) & us_ethnicity==1) + (plans_long + plans_short)"
+# Affirmation effect for US racial-ethnic minorities (majority = white/asian/non-hispanic)
+# Expect: affirmation supports US minority learners
+data$us_majority = !(data$us_race %in% c(1, 4) & data$us_ethnicity == 1)
+models[["affirm.minority"]] = " affirm * us_majority + (plans_long + plans_short)"
+samples[["affirm.minority"]] = !is.na(data$us_race) & !is.na(data$us_ethnicity) # US participants
+
+# Affirmation effect moderated by HDI and individual-level country social identity threat
+# Expect: affirmation supports learners in low HDI regions, especially those with high threat
+models[["affirm.csit"]] = " affirm * scale(HDI) * scale(threat_country) + (plans_long + plans_short)"
+
+# Affirmation effect moderated by HDI region and individual-level lanuage skill
+# Expect: affirmation supports learners in low HDI regions, especially those whose English is not fluent 
+models[["affirm.lang"]] = " affirm * highHDI * is_fluent + (plans_long + plans_short)"
+
+# Affirmation effect by gender and course gender ratio
+# Expect: affirmation supports learners of underrepresented (<33%) gender group
+data = data %>% group_by(course) %>% mutate(course_prop_female = mean(sex == 2))
+models[["affirm.sex"]] = " affirm * I(sex==2) * scale(course_prop_female) + (plans_long + plans_short) "
+
 
 #######################################################
 ### Planned analyses for Plan-Making ###
@@ -101,10 +121,12 @@ samples[["plan.vs.plan"]] = samples[["plan.original"]]
 
 
 #######################################################
-#### Outcomes ####
+#### Outcome Measures ####
 #######################################################
-# Binary Outcomes: cert_verified, cert_basic, upgrade_verified, subsequent_enroll
-# Percentage Outcomes: course_progress, likely_complete_1
+# Primary outcome: cert_basic (binary)
+# Primary outcomes (Harvard and MIT courses only): cert_verified (binary), upgrade_verified (binary)
+# Secondary outcome: course_progress (percentage)
+# Tertiary outcome: likely_complete_1 (percentage)
 
 
 #######################################################
@@ -124,7 +146,7 @@ fit_model = function(model.name, model.outcome) {
   # Estimate model parameters
   if (mean(model.data$Y %in% (0:1)) == 1){
     # for binary Y
-    model.fit = glmer(formula(paste("Y ~ ", models[[model.name]], course.strata)),
+    model.fit = glmer(formula(paste("Y ~ ", models[[model.name]], strata)),
                       data = model.data,
                       family = "binomial",
                       nAGQ = 0, 
@@ -132,7 +154,7 @@ fit_model = function(model.name, model.outcome) {
     
   } else {
     # for non-binary Y
-    model.fit = lmer(formula(paste("Y ~ ", models[[model.name]], course.strata)), 
+    model.fit = lmer(formula(paste("Y ~ ", models[[model.name]], strata)), 
                     data = model.data)
   }
   
@@ -143,9 +165,36 @@ fit_model = function(model.name, model.outcome) {
 #### Fitting the model #### 
 #######################################################
 
+
+### Primary outcome cert_basic (binary) ###
+
 fit_model(model.name = "simple", model.outcome = "cert_basic")
 
+# Affirm Primary
+fit_model(model.name = "affirm.hdi2", model.outcome = "cert_basic")
+fit_model(model.name = "affirm.hdi4", model.outcome = "cert_basic")
+
+# Affirm Secondary
+fit_model(model.name = "affirm.ses", model.outcome = "cert_basic")
+fit_model(model.name = "affirm.minority", model.outcome = "cert_basic")
+fit_model(model.name = "affirm.csit", model.outcome = "cert_basic")
+fit_model(model.name = "affirm.lang", model.outcome = "cert_basic")
+fit_model(model.name = "affirm.sex", model.outcome = "cert_basic")
+
+# Plans Primary
+
+# Plans Secondary
 
 
+### Secondary outcome course_progress (percentage) ###
+
+
+### Tertiary outcome likely_complete_1 (percentage) ###
+ 
+
+### MIT/Harvard only outcome cert_verified (binary) ###
+
+
+# MIT/Harvard only outcome upgrade_verified (binary)
 
 ##############################
