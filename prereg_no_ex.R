@@ -28,9 +28,9 @@ data = mutate(data,
 )
 
 samples = list()
-samples[["baseline"]] = data$itt.sample # baseline (a., b., & c.)
 samples[["exposed"]] = data$exposed.to.treat # all exposed (only a.)
-samples[["HarvardMIT"]] = data$school %in% (1:2) # all Harvard/MIT courses
+samples[["baseline"]] = data$itt.sample # baseline (a., b., & c.)
+samples[["baseline_HarvardMIT"]] = samples[["baseline"]] & data$school %in% (1:2)
 
 #######################################################
 #### Stratified and Nested Design ####
@@ -66,7 +66,7 @@ strata = " + intent_assess + hours + crs_finish + educ + (1 | school/course) + (
 ### Regression Models ###
 models = list()
 # only estimates the background covariates/nesting
-models[["baseline"]] = "1"
+# models[["baseline"]] = "1"
 # simple treatment effects
 models[["simple"]] = "affirm * (plans_long + plans_short) " 
 
@@ -112,33 +112,24 @@ models[["affirm.sex"]] = " affirm * I(sex==2) * scale(course_prop_female) + (pla
 #######################################################
 ### Planned analyses for Plan-Making ###
 #######################################################
-data$plans_any = as.numeric(data$plans > 0)
 
+# Sample for Plans Intervention: Fluent English speakers who intend to complete all course assessments
+samples[["fluent_intent"]] = samples[["baseline"]] & (data$is_fluent == 1) & (data$intent_assess == 4)
+samples[["HarvardMIT_fluent_intent"]] = samples[["fluent_intent"]] & samples[["baseline_HarvardMIT"]]
+
+### Primary Analysis ###
+data$plans_any = as.numeric(data$plans > 0)
 models[["plan.original"]] = "affirm + (plans_long + plans_short)"  
 models[["plan.vs.plan"]] = "affirm + (plans_any + plans_long)"
-samples[["plan.original"]] = samples[["baseline"]] & (data$is_fluent==1) & (data$intent_assess==4)
-samples[["plan.vs.plan"]] = samples[["plan.original"]]
-
-
-#######################################################
-#### Outcome Measures ####
-#######################################################
-# Primary outcome: cert_basic (binary)
-# Primary outcomes (Harvard and MIT courses only): cert_verified (binary), upgrade_verified (binary)
-# Secondary outcome: course_progress (percentage)
-# Tertiary outcome: likely_complete_1 (percentage)
 
 
 #######################################################
 ####  Generalized Model Fitting Function #### 
 #######################################################
-fit_model = function(model.name, model.outcome) {
+fit_model = function(model.name, model.outcome, sample = "baseline") {
+  
   # Select relevant sample for model
-  if (model.name %in% names(samples)){
-    model.data = data[samples[[model.name]],]
-  } else {
-    model.data = data[samples[["baseline"]],]
-  }
+  model.data = data[samples[[sample]],]
   
   # Set Y to be the outcome of interest
   model.data$Y = unlist(model.data[,model.outcome])
@@ -162,39 +153,124 @@ fit_model = function(model.name, model.outcome) {
 }
 
 #######################################################
-#### Fitting the model #### 
+#### Fitting Models #### 
 #######################################################
+#
+# The following analyses are structured based on the priorities specified above.
+# The priorities for outcome measures are as follows:
+# Primary outcome: cert_basic (binary)
+# Secondary outcome: course_progress (percentage)
+# Tertiary outcome: likely_complete_1 (percentage)
+#
+# Additional primary outcomes availabe only for Harvard and MIT courses: 
+#   cert_verified (binary), upgrade_verified (binary)
+#
+# The 'baseline' ITT sample is used unless specified otherwise.
+#
+### Primary outcome: cert_basic (binary) ###
+.y = "cert_basic"
 
+# Overall Effect of Interventions
+fit_model(model.name = "simple", model.outcome = .y)
+fit_model(model.name = "simple", model.outcome = .y, sample = "exposed")
 
-### Primary outcome cert_basic (binary) ###
+# Affirmation - Primary Analysis
+fit_model(model.name = "affirm.hdi2", model.outcome = .y)
+fit_model(model.name = "affirm.hdi4", model.outcome = .y)
 
-fit_model(model.name = "simple", model.outcome = "cert_basic")
+# Affirmation - Secondary Analysis
+fit_model(model.name = "affirm.ses", model.outcome = .y)
+fit_model(model.name = "affirm.minority", model.outcome = .y)
+fit_model(model.name = "affirm.csit", model.outcome = .y)
+fit_model(model.name = "affirm.lang", model.outcome = .y)
+fit_model(model.name = "affirm.sex", model.outcome = .y)
 
-# Affirm Primary
-fit_model(model.name = "affirm.hdi2", model.outcome = "cert_basic")
-fit_model(model.name = "affirm.hdi4", model.outcome = "cert_basic")
+# Affirmation - Tertiary Analysis With All Exposed Sample
+fit_model(model.name = "affirm.hdi4", model.outcome = .y, sample = "exposed")
+fit_model(model.name = "affirm.ses", model.outcome = .y, sample = "exposed")
+fit_model(model.name = "affirm.minority", model.outcome = .y, sample = "exposed")
+fit_model(model.name = "affirm.csit", model.outcome = .y, sample = "exposed")
+fit_model(model.name = "affirm.lang", model.outcome = .y, sample = "exposed")
+fit_model(model.name = "affirm.sex", model.outcome = .y, sample = "exposed")
 
-# Affirm Secondary
-fit_model(model.name = "affirm.ses", model.outcome = "cert_basic")
-fit_model(model.name = "affirm.minority", model.outcome = "cert_basic")
-fit_model(model.name = "affirm.csit", model.outcome = "cert_basic")
-fit_model(model.name = "affirm.lang", model.outcome = "cert_basic")
-fit_model(model.name = "affirm.sex", model.outcome = "cert_basic")
-
-# Plans Primary
-
-# Plans Secondary
+# Plans - Primary Analysis (note: dropping intent_assess cov. from model for this subsample)
+fit_model(model.name = "plan.original", model.outcome = .y, sample = "fluent_intent")
+fit_model(model.name = "plan.vs.plan", model.outcome = .y, sample = "fluent_intent")
 
 
 ### Secondary outcome course_progress (percentage) ###
+.y = "course_progress"
+# Run same models as for the primary outcome.
 
 
 ### Tertiary outcome likely_complete_1 (percentage) ###
- 
+.y = "likely_complete_1"
+# Run same models as for the primary outcome.
+
 
 ### MIT/Harvard only outcome cert_verified (binary) ###
+.y = "cert_verified"
+.s = "baseline_HarvardMIT"
+
+# Overall Effect of Interventions
+fit_model(model.name = "simple", model.outcome = .y, sample = .s)
+
+# Affirmation - Primary Analysis
+fit_model(model.name = "affirm.hdi2", model.outcome = .y, sample = .s)
+fit_model(model.name = "affirm.hdi4", model.outcome = .y, sample = .s)
+
+# Affirmation - Secondary Analysis
+fit_model(model.name = "affirm.ses", model.outcome = .y, sample = .s)
+fit_model(model.name = "affirm.minority", model.outcome = .y, sample = .s)
+fit_model(model.name = "affirm.csit", model.outcome = .y, sample = .s)
+fit_model(model.name = "affirm.lang", model.outcome = .y, sample = .s)
+fit_model(model.name = "affirm.sex", model.outcome = .y, sample = .s)
+
+# Plans - Primary Analysis (note: dropping intent_assess cov. from model for this subsample)
+fit_model(model.name = "plan.original", model.outcome = .y, sample = "HarvardMIT_fluent_intent")
+fit_model(model.name = "plan.vs.plan", model.outcome = .y, sample = "HarvardMIT_fluent_intent")
 
 
-# MIT/Harvard only outcome upgrade_verified (binary)
+### MIT/Harvard only outcome upgrade_verified (binary) ###
+.y = "upgrade_verified"
+.s = "baseline_HarvardMIT"
+# Run same models as for MIT/Harvard only outcome cert_verified.
+
+
+#######################################################
+#### Descriptive Statistics #### 
+#######################################################
+
+# Some descriptive statistics by condition
+data %>% 
+  filter(itt.sample) %>% # same as "baseline" sample
+  group_by(affirm, plans) %>%
+  summarise(
+    N = n(),
+    N_harvardMIT = sum(school %in% (1:2)),
+    cert_basic = mean(cert_basic),
+    cert_verified = mean(cert_verified, na.rm=T),
+    upgrade_verified = mean(upgrade_verified, na.rm=T),
+    avg_course_progress = mean(course_progress),
+    avg_age = mean(2017 - yob),
+    prop_women = mean(sex == 2),
+    prop_fluent = mean(is_fluent),
+    prop_intent_assess_all = mean(intent_assess == 4),
+    prop_highHDI = mean(highHDI)
+  )
+
+# Check balance of assignment conditional on stratification
+# Need to correct for multiple comparisons, 36 for each condition
+data %>% 
+  # filter(itt.sample) %>% # same as "baseline" sample
+  group_by(strata_intent_assess, strata_educ, strata_hours, strata_crs_finish) %>%
+  summarise(
+    a.m = mean(affirm),
+    a.p = prop.test(x = sum(affirm), n = n(), p=.5)$p.value,
+    pl.m = mean(plans_long), 
+    pl.p = prop.test(x = sum(plans_long), n = n(), p=1/3)$p.value,
+    ps.m = mean(plans_short),
+    ps.p = prop.test(x = sum(plans_short), n = n(), p=1/3)$p.value
+  )
 
 ##############################

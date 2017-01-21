@@ -165,7 +165,6 @@ data$y_prob[data$y_prob>1] = 1
 # Generate All Outcome Measures Based on Pr(certification)
 data$cert_verified = rbinom(nrow(data), 1, data$y_prob)
 data$cert_basic = rbinom(nrow(data), 1, data$y_prob)
-data$subsequent_enroll = rbinom(nrow(data), 1, data$y_prob)
 data$upgrade_verified = rbinom(nrow(data), 1, data$y_prob)
 data$course_progress = 100 * data$y_prob
 data$likely_complete_1 = 100 * data$y_prob
