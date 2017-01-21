@@ -14,17 +14,26 @@ load("simdat.rda")
 # Sample Selection
 #######################################################
 #
+# Identify first exposure to treatment to exclude learners who took more than one course
+# and could be exposed multiple times to the same or different interventions
+#
+data = ungroup(data %>% 
+  group_by(id) %>% 
+  arrange(survey_timestamp) %>% 
+  mutate(first.exposed = row_number() == 1)
+)
+#
 #  Survey software records all learners who started the course survey.
 #  We impose a set of exclusion criteria to define our sample of interest:
 #  a. The learner must have completed enough of the survey to be randomized and exposed to condition
 #  b. The learner must have started the course in the first 14 days (not applicable for self-paced courses)
 #  c. The learner must have started the survey within the first hour of entering the course
-
+#
 data = mutate(data,
   exposed.to.treat = (webservice_call_complete == 1) & (!is.na(affirm)) & (!is.na(plans)), # a.
   start.day = (first_activity_timestamp - course_start_timestamp) / (60*60*24), # b.
   survey.delay = (survey_timestamp - first_activity_timestamp) / (60*60), # c.
-  itt.sample = exposed.to.treat & (is_selfpaced | start.day < 15) & (survey.delay < 1)
+  itt.sample = first.exposed & exposed.to.treat & (is_selfpaced | start.day < 15) & (survey.delay < 1)
 )
 
 samples = list()
@@ -158,12 +167,9 @@ fit_model = function(model.name, model.outcome, sample = "baseline") {
 #
 # The following analyses are structured based on the priorities specified above.
 # The priorities for outcome measures are as follows:
-# Primary outcome: cert_basic (binary)
-# Secondary outcome: course_progress (percentage)
+# Primary outcomes: cert_basic (binary), cert_verified (binary; Harvard/MIT only)
+# Secondary outcomes: course_progress (percentage), upgrade_verified (binary; Harvard/MIT only)
 # Tertiary outcome: likely_complete_1 (percentage)
-#
-# Additional primary outcomes availabe only for Harvard and MIT courses: 
-#   cert_verified (binary), upgrade_verified (binary)
 #
 # The 'baseline' ITT sample is used unless specified otherwise.
 #
@@ -208,7 +214,7 @@ fit_model(model.name = "plan.vs.plan", model.outcome = .y, sample = "fluent_inte
 # Run same models as for the primary outcome.
 
 
-### MIT/Harvard only outcome cert_verified (binary) ###
+### Primary outcome (MIT/Harvard only) cert_verified (binary) ###
 .y = "cert_verified"
 .s = "baseline_HarvardMIT"
 
@@ -231,7 +237,7 @@ fit_model(model.name = "plan.original", model.outcome = .y, sample = "HarvardMIT
 fit_model(model.name = "plan.vs.plan", model.outcome = .y, sample = "HarvardMIT_fluent_intent")
 
 
-### MIT/Harvard only outcome upgrade_verified (binary) ###
+### Secondary outcome (MIT/Harvard only) upgrade_verified (binary) ###
 .y = "upgrade_verified"
 .s = "baseline_HarvardMIT"
 # Run same models as for MIT/Harvard only outcome cert_verified.

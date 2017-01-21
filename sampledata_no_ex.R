@@ -12,14 +12,15 @@ set.seed(02138)
 N = 1e5
 
 # Sampling function
-samp = function(x, n = N){
-  sample(x, n, replace=T)
+samp = function(x, n = N, repl = T){
+  sample(x, n, replace = repl)
 }
 
 #######################################################
 # Simulate Initial Dataset
 #######################################################
-data = data.frame(school=samp(1:3),
+data = data.frame(id=samp(N, N, F),
+                  school=samp(1:3),
                   course=samp(1:35),
                   webservice_call_complete = samp(rep(0:1, c(1,99))),
                   intent_lecture=samp(1:4),
