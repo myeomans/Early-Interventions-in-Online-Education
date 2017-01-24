@@ -39,7 +39,7 @@ data = mutate(data,
 samples = list()
 samples[["exposed"]] = data$exposed.to.treat # all exposed (only a.)
 samples[["baseline"]] = data$itt.sample # baseline (a., b., & c.)
-samples[["baseline_HarvardMIT"]] = samples[["baseline"]] & data$school %in% (1:2)
+samples[["baseline_HarvardMIT"]] = samples[["baseline"]] & data$school %in% c("Harvard","MIT")
 
 #######################################################
 #### Stratified and Nested Design ####
