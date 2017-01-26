@@ -32,8 +32,9 @@ data = ungroup(data %>%
 data = mutate(data,
   exposed.to.treat = (webservice_call_complete == 1) & (!is.na(affirm)) & (!is.na(plans)), # a.
   start.day = (first_activity_timestamp - course_start_timestamp) / (60*60*24), # b.
+  start.from.end = (first_activity_timestamp - course_end_timestamp) / (60*60*24), # b.
   survey.delay = (survey_timestamp - first_activity_timestamp) / (60*60), # c.
-  itt.sample = first.exposed & exposed.to.treat & (is_selfpaced | start.day < 15) & (survey.delay < 1)
+  itt.sample = first.exposed & exposed.to.treat & ((is_selfpaced & (start.from.end > 30)) | ((!is_selfpaced) & (start.day < 15))) & (survey.delay < 1)
 )
 
 samples = list()
