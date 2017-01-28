@@ -26,8 +26,9 @@ data = ungroup(data %>%
 #  Survey software records all learners who started the course survey.
 #  We impose a set of exclusion criteria to define our sample of interest:
 #  a. The learner must have completed enough of the survey to be randomized and exposed to condition
-#  b. The learner must have started the course in the first 14 days (not applicable for self-paced courses)
-#  c. The learner must have started the survey within the first hour of entering the course
+#  b. The learner must have started the survey within the first hour of their first timestamp in the course
+#  c1. The learner must have started a cohort course in the first 14 days OR
+#  c2. The learner must have started a self-paced course bafore the last 30 days
 #
 data = mutate(data,
   exposed.to.treat = (webservice_call_complete == 1) & (!is.na(affirm)) & (!is.na(plans)), # a.
@@ -38,9 +39,12 @@ data = mutate(data,
 )
 
 samples = list()
-samples[["exposed"]] = data$exposed.to.treat # all exposed (only a.)
 samples[["baseline"]] = data$itt.sample # baseline (a., b., & c.)
 samples[["baseline_HarvardMIT"]] = samples[["baseline"]] & data$school %in% c("Harvard","MIT")
+
+# Sample from previous Plans intervention: Fluent English speakers who intend to complete all course assessments
+samples[["fluent_intent"]] = samples[["baseline"]] & (data$is_fluent == 1) & (data$intent_assess == 4)
+samples[["fluent_intent_HarvardMIT"]] = samples[["fluent_intent"]] & samples[["baseline_HarvardMIT"]]
 
 #######################################################
 #### Stratified and Nested Design ####
@@ -118,14 +122,9 @@ models[["affirm.lang"]] = " affirm * highHDI * is_fluent + (plans_long + plans_s
 data = data %>% group_by(course) %>% mutate(course_prop_female = mean(sex == 2))
 models[["affirm.sex"]] = " affirm * I(sex==2) * scale(course_prop_female) + (plans_long + plans_short) "
 
-
 #######################################################
 ### Planned analyses for Plan-Making ###
 #######################################################
-
-# Sample for Plans Intervention: Fluent English speakers who intend to complete all course assessments
-samples[["fluent_intent"]] = samples[["baseline"]] & (data$is_fluent == 1) & (data$intent_assess == 4)
-samples[["HarvardMIT_fluent_intent"]] = samples[["fluent_intent"]] & samples[["baseline_HarvardMIT"]]
 
 ### Primary Analysis ###
 data$plans_any = as.numeric(data$plans > 0)
@@ -179,7 +178,6 @@ fit_model = function(model.name, model.outcome, sample = "baseline") {
 
 # Overall Effect of Interventions
 fit_model(model.name = "simple", model.outcome = .y)
-fit_model(model.name = "simple", model.outcome = .y, sample = "exposed")
 
 # Affirmation - Primary Analysis
 fit_model(model.name = "affirm.hdi2", model.outcome = .y)
