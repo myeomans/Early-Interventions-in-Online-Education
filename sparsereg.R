@@ -15,13 +15,29 @@ load("simdat.rda")
 #######################################################
 
 # Selecting ITT sample as in prereg.R analyses
+data = ungroup(data %>% 
+  group_by(id) %>% 
+  arrange(survey_timestamp) %>% 
+  mutate(
+    first.exposure = row_number() == 1,
+    num.exposures = n(),
+    days.to.next.exposure = ifelse(n() > 1, diff(survey_timestamp)[1] / (60*60*24), 0),
+    clean.exposure = first.exposure & (num.exposures == 1 | days.to.next.exposure > 29)
+  ))
+
+analysis_timestamp = 1487145600 # e.g. 2/15/2017
 data = mutate(data,
-    exposed.to.treat = (webservice_call_complete == 1) & (!is.na(affirm)) & (!is.na(plans)),
-    start.day = (first_activity_timestamp - course_start_timestamp) / (60*60*24),
-    survey.delay = (survey_timestamp - first_activity_timestamp) / (60*60)
-  ) %>% filter(
-    exposed.to.treat & (is_selfpaced | start.day < 15) & (survey.delay < 1)
+  exposed.to.treat = (webservice_call_complete == 1) & (!is.na(affirm)) & (!is.na(plans)), # a.
+  survey.delay = (survey_timestamp - first_activity_timestamp) / (60*60), # c.
+  days.from.start = (first_activity_timestamp - course_start_timestamp) / (60*60*24), # d1.
+  days.to.analysis = (analysis_timestamp - first_activity_timestamp) / (60*60*24), # d2.
+  itt.sample = exposed.to.treat & # a.
+    clean.exposure & # b.
+    (survey.delay < 1) & # c.
+    ((course_selfpaced & (days.to.analysis > 29)) | ((!course_selfpaced) & (days.from.start < 15))) # d1|d2
   )
+
+data %>% filter(itt.sample)
 
 # Transforming variables for sparse model
 data = data %>% mutate(
