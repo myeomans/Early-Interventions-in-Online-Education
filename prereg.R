@@ -23,12 +23,27 @@ data = ungroup(data %>%
   mutate(first.exposed = row_number() == 1)
 )
 #
+# Ugly way to handle simultaneous intervention expusore
+#
+# data = ungroup(data %>% 
+#  group_by(id) %>% 
+#  arrange(survey_timestamp) %>% 
+#  mutate(exposure.order = row_number())
+#)
+# next.grab<-function(x) return(data[(data$exposure.order==(data[x,]$exposure.order+1))&(data$id==data[x,]$id),"survey_timestamp"])
+# data$next.exposed<-sapply(1:nrow(data),nex.grab)
+# data$time.to.next<- (data$next.exposed-data$survey_timestamp / (60*60*24)
+# data$first.exposed <- 1*((data$exposure.order==1)&(is.na(data$time.to.next)|(data$time.to.next>30)))
+
+
+
 #  Survey software records all learners who started the course survey.
 #  We impose a set of exclusion criteria to define our sample of interest:
 #  a. The learner must have completed enough of the survey to be randomized and exposed to condition
-#  b. The learner must have started the survey within the first hour of their first timestamp in the course
-#  c1. The learner must have started a cohort course in the first 14 days OR
-#  c2. The learner must have started a self-paced course bafore the last 30 days
+#  b. The learner must not have seen this intervention before, or 
+#  c. The learner must have started the survey within the first hour of their first timestamp in the course
+#  d1. The learner must have started a cohort course in the first 14 days OR
+#  d2. The learner must have started a self-paced course bafore the last 30 days
 #
 data = mutate(data,
   exposed.to.treat = (webservice_call_complete == 1) & (!is.na(affirm)) & (!is.na(plans)), # a.
