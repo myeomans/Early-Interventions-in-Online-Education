@@ -42,8 +42,6 @@ data %>% filter(itt.sample)
 # Transforming variables for sparse model
 data = data %>% mutate(
   age = 2017 - yob,
-  is_female = sex == 2,
-  other_sex = sex == 3,
   educ_phd = educ == 1,
   educ_ma_prof = educ %in% (2:3),
   educ_ba = educ == 4,
@@ -58,7 +56,7 @@ data = data %>% mutate(
 )
 
 covariates = c("intent_lecture", "intent_assess", "hours", "crs_finish",
-               "goal_setting", "fam", "educ_parents", "age", "is_female", "other_sex",
+               "goal_setting", "fam", "educ_parents", "age", "gender_female", "gender_other",
                "educ_phd", "educ_ma_prof", "educ_ba", "educ_some_he", "more_educ_than_parents",
                "is_teacher", "is_employed", "is_unemployed", "is_ft_student", "is_pt_student",
                "fluent", "threat_country", "olei_interest", "olei_job", "olei_degree",
