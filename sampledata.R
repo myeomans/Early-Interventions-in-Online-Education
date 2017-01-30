@@ -132,8 +132,16 @@ data$HDI4 = cut(data$HDI,
 # Binary indicator for fluent English speakers
 data$is_fluent = as.numeric(data$fluent == 5)
 
+# Binary indicators for gender
+data$gender_female = as.numeric(data$sex == 2)
+data$gender_other = as.numeric(data$sex == 3)
+
+# Binary indicators for U.S. racial-ethnic majority
+# Defined as White or Asian, and Non-Hispanic
+data$us_majority = as.numeric((data$us_race %in% c(1, 4)) & data$us_ethnicity == 1)
+
 # Binary indicator for self-paced (vs. cohort-based) courses
-data$is_selfpaced = data$course %in% (1:5)
+data$course_selfpaced = data$course %in% (1:5)
 
 #######################################################
 # Simulate Outcome Measures with Treatment Effects

@@ -14,52 +14,41 @@ load("simdat.rda")
 # Sample Selection
 #######################################################
 #
-# Identify first exposure to treatment to exclude learners who took more than one course
-# and could be exposed multiple times to the same or different interventions
+# Identify first exposure to treatment, number of exposures, and days to second exposure
 #
 data = ungroup(data %>% 
   group_by(id) %>% 
   arrange(survey_timestamp) %>% 
-  mutate(first.exposed = row_number() == 1)
-)
-#
-# Ugly way to handle simultaneous intervention expusore
-#
-# data = ungroup(data %>% 
-#  group_by(id) %>% 
-#  arrange(survey_timestamp) %>% 
-#  mutate(exposure.order = row_number())
-#)
-# next.grab<-function(x) return(data[(data$exposure.order==(data[x,]$exposure.order+1))&(data$id==data[x,]$id),"survey_timestamp"])
-# data$next.exposed<-sapply(1:nrow(data),nex.grab)
-# data$time.to.next<- (data$next.exposed-data$survey_timestamp / (60*60*24)
-# data$first.exposed <- 1*((data$exposure.order==1)&(is.na(data$time.to.next)|(data$time.to.next>30)))
-
-
+  mutate(
+    first.exposure = row_number() == 1,
+    num.exposures = n(),
+    days.to.next.exposure = ifelse(n() > 1, diff(survey_timestamp)[1] / (60*60*24), 0),
+    clean.exposure = first.exposure & (num.exposures == 1 | days.to.next.exposure > 29)
+  ))
 
 #  Survey software records all learners who started the course survey.
 #  We impose a set of exclusion criteria to define our sample of interest:
 #  a. The learner must have completed enough of the survey to be randomized and exposed to condition
-#  b. The learner must not have seen this intervention before, or 
+#  b. The learner must have been exposed only once within 30 days of first exposure
 #  c. The learner must have started the survey within the first hour of their first timestamp in the course
-#  d1. The learner must have started a cohort course in the first 14 days OR
-#  d2. The learner must have started a self-paced course bafore the last 30 days
+#  d1. The learner must have started a cohort-based course in its first 14 days, OR
+#  d2. The learner must have started a self-paced course before the last 30 days
 #
+analysis_timestamp = 1487145600 # e.g. 2/15/2017
 data = mutate(data,
   exposed.to.treat = (webservice_call_complete == 1) & (!is.na(affirm)) & (!is.na(plans)), # a.
-  start.day = (first_activity_timestamp - course_start_timestamp) / (60*60*24), # b.
-  start.from.end = (first_activity_timestamp - course_end_timestamp) / (60*60*24), # b.
   survey.delay = (survey_timestamp - first_activity_timestamp) / (60*60), # c.
-  itt.sample = first.exposed & exposed.to.treat & ((is_selfpaced & (start.from.end > 30)) | ((!is_selfpaced) & (start.day < 15))) & (survey.delay < 1)
+  days.from.start = (first_activity_timestamp - course_start_timestamp) / (60*60*24), # d1.
+  days.to.analysis = (analysis_timestamp - first_activity_timestamp) / (60*60*24), # d2.
+  itt.sample = exposed.to.treat & # a.
+    clean.exposure & # b.
+    (survey.delay < 1) & # c.
+    ((course_selfpaced & (days.to.analysis > 29)) | ((!course_selfpaced) & (days.from.start < 15))) # d1|d2
 )
 
 samples = list()
-samples[["baseline"]] = data$itt.sample # baseline (a., b., & c.)
-samples[["baseline_HarvardMIT"]] = samples[["baseline"]] & data$school %in% c("Harvard","MIT")
-
-# Sample from previous Plans intervention: Fluent English speakers who intend to complete all course assessments
-samples[["fluent_intent"]] = samples[["baseline"]] & (data$is_fluent == 1) & (data$intent_assess == 4)
-samples[["fluent_intent_HarvardMIT"]] = samples[["fluent_intent"]] & samples[["baseline_HarvardMIT"]]
+samples[["baseline"]] = data$itt.sample # baseline
+samples[["baseline_HarvardMIT"]] = samples[["baseline"]] & data$school %in% c(1:2)
 
 #######################################################
 #### Stratified and Nested Design ####
@@ -97,20 +86,21 @@ models = list()
 # only estimates the background covariates/nesting
 # models[["baseline"]] = "1"
 # simple treatment effects
-models[["simple"]] = "affirm * (plans_long + plans_short) " 
+models[["main.interaction"]] = "affirm * (plans_long + plans_short) " 
 
 #######################################################
 ### Planned analyses for Affirmation ###
 #######################################################
 
 ### Primary Analysis ###
-# Replication: Affirmation effect for low vs. high HDI countries
+# Replication: Affirmation effect in low vs. high HDI countries
 # Expect: affirmation supports low-HDI learners
-models[["affirm.hdi2"]] = " affirm * highHDI + (plans_long + plans_short)"
+models[["simple"]] = " affirm + (plans_long + plans_short)"
 
-# Zooming in: Affirmation effect in four HDI bins
-# Expect: affirmation supports low-HDI learners the most, followed by medium-HDI learners
-models[["affirm.hdi4"]] = " affirm * HDI4 + (plans_long + plans_short)"
+samples[["high.hdi"]] = samples[["baseline"]] & data$highHDI == 1
+samples[["low.hdi"]] = samples[["baseline"]] & data$highHDI == 0
+samples[["high.hdi_HarvardMIT"]] = samples[["high.hdi"]] & samples[["baseline_HarvardMIT"]]
+samples[["low.hdi_HarvardMIT"]] = samples[["low.hdi"]] & samples[["baseline_HarvardMIT"]]
 
 ### Secondary Analysis - Theory-driven Extensions ###
 
@@ -120,9 +110,9 @@ models[["affirm.ses"]] = " affirm * scale(10-educ_parents) + (plans_long + plans
 
 # Affirmation effect for US racial-ethnic minorities (majority = white/asian/non-hispanic)
 # Expect: affirmation supports US minority learners
-data$us_majority = !(data$us_race %in% c(1, 4) & data$us_ethnicity == 1)
 models[["affirm.minority"]] = " affirm * us_majority + (plans_long + plans_short)"
-samples[["affirm.minority"]] = !is.na(data$us_race) & !is.na(data$us_ethnicity) # US participants
+samples[["US.respondent"]] = samples[["baseline"]] & !is.na(data$us_majority) # respondent in US 
+samples[["US.respondent_HarvardMIT"]] = samples[["US.respondent"]] & samples[["baseline_HarvardMIT"]]
 
 # Affirmation effect moderated by HDI and individual-level country social identity threat
 # Expect: affirmation supports learners in low HDI regions, especially those with high threat
@@ -134,8 +124,8 @@ models[["affirm.lang"]] = " affirm * highHDI * is_fluent + (plans_long + plans_s
 
 # Affirmation effect by gender and course gender ratio
 # Expect: affirmation supports learners of underrepresented (<33%) gender group
-data = data %>% group_by(course) %>% mutate(course_prop_female = mean(sex == 2))
-models[["affirm.sex"]] = " affirm * I(sex==2) * scale(course_prop_female) + (plans_long + plans_short) "
+data = data %>% group_by(course) %>% mutate(course_prop_female = mean(gender_female))
+models[["affirm.sex"]] = " affirm * gender_female * scale(course_prop_female) + (plans_long + plans_short) "
 
 #######################################################
 ### Planned analyses for Plan-Making ###
@@ -145,6 +135,11 @@ models[["affirm.sex"]] = " affirm * I(sex==2) * scale(course_prop_female) + (pla
 data$plans_any = as.numeric(data$plans > 0)
 models[["plan.original"]] = "affirm + (plans_long + plans_short)"  
 models[["plan.vs.plan"]] = "affirm + (plans_any + plans_long)"
+
+# Define sample based on from previous plan-making intervention: 
+# Fluent English speakers who intend to complete all course assessments
+samples[["fluent_intent"]] = samples[["baseline"]] & (data$is_fluent == 1) & (data$intent_assess == 4)
+samples[["fluent_intent_HarvardMIT"]] = samples[["fluent_intent"]] & samples[["baseline_HarvardMIT"]]
 
 
 #######################################################
@@ -192,23 +187,22 @@ fit_model = function(model.name, model.outcome, sample = "baseline") {
 .y = "cert_basic"
 
 # Overall Effect of Interventions
-fit_model(model.name = "simple", model.outcome = .y)
+fit_model(model.name = "main.interaction", model.outcome = .y)
 
 # Affirmation - Primary Analysis
-fit_model(model.name = "affirm.hdi2", model.outcome = .y)
-fit_model(model.name = "affirm.hdi4", model.outcome = .y)
+fit_model(model.name = "simple", model.outcome = .y, sample = "low.hdi")
+fit_model(model.name = "simple", model.outcome = .y, sample = "high.hdi")
 
 # Affirmation - Secondary Analysis
 fit_model(model.name = "affirm.ses", model.outcome = .y)
-fit_model(model.name = "affirm.minority", model.outcome = .y)
+fit_model(model.name = "affirm.minority", model.outcome = .y, sample = "US.respondent")
 fit_model(model.name = "affirm.csit", model.outcome = .y)
 fit_model(model.name = "affirm.lang", model.outcome = .y)
 fit_model(model.name = "affirm.sex", model.outcome = .y)
 
 # Affirmation - Tertiary Analysis With All Exposed Sample
-fit_model(model.name = "affirm.hdi4", model.outcome = .y, sample = "exposed")
 fit_model(model.name = "affirm.ses", model.outcome = .y, sample = "exposed")
-fit_model(model.name = "affirm.minority", model.outcome = .y, sample = "exposed")
+fit_model(model.name = "affirm.minority", model.outcome = .y, sample = "exposed", sample = "US.respondent")
 fit_model(model.name = "affirm.csit", model.outcome = .y, sample = "exposed")
 fit_model(model.name = "affirm.lang", model.outcome = .y, sample = "exposed")
 fit_model(model.name = "affirm.sex", model.outcome = .y, sample = "exposed")
@@ -233,15 +227,15 @@ fit_model(model.name = "plan.vs.plan", model.outcome = .y, sample = "fluent_inte
 .s = "baseline_HarvardMIT"
 
 # Overall Effect of Interventions
-fit_model(model.name = "simple", model.outcome = .y, sample = .s)
+fit_model(model.name = "main.interaction", model.outcome = .y, sample = .s)
 
 # Affirmation - Primary Analysis
-fit_model(model.name = "affirm.hdi2", model.outcome = .y, sample = .s)
-fit_model(model.name = "affirm.hdi4", model.outcome = .y, sample = .s)
+fit_model(model.name = "simple", model.outcome = .y, sample = "low.hdi_HarvardMIT")
+fit_model(model.name = "simple", model.outcome = .y, sample = "high.hdi_HarvardMIT")
 
 # Affirmation - Secondary Analysis
 fit_model(model.name = "affirm.ses", model.outcome = .y, sample = .s)
-fit_model(model.name = "affirm.minority", model.outcome = .y, sample = .s)
+fit_model(model.name = "affirm.minority", model.outcome = .y, sample = "US.respondent_HarvardMIT")
 fit_model(model.name = "affirm.csit", model.outcome = .y, sample = .s)
 fit_model(model.name = "affirm.lang", model.outcome = .y, sample = .s)
 fit_model(model.name = "affirm.sex", model.outcome = .y, sample = .s)
