@@ -48,7 +48,7 @@ data = mutate(data,
 
 samples = list()
 samples[["baseline"]] = data$itt.sample # baseline
-samples[["baseline_HarvardMIT"]] = samples[["baseline"]] & data$school %in% c(1:2)
+samples[["baseline_HarvardMIT"]] = samples[["baseline"]] & data$school %in% c("Harvard","MIT")
 
 #######################################################
 #### Stratified and Nested Design ####
@@ -177,7 +177,7 @@ fit_model = function(model.name, model.outcome, sample = "baseline") {
 #
 # The following analyses are structured based on the priorities specified above.
 # The priorities for outcome measures are as follows:
-# Primary outcomes: cert_basic (binary), cert_verified (binary; Harvard/MIT only)
+# Primary outcomes: cert_basic (binary),
 # Secondary outcomes: course_progress (percentage), upgrade_verified (binary; Harvard/MIT only)
 # Tertiary outcome: likely_complete_1 (percentage)
 #
@@ -185,6 +185,12 @@ fit_model = function(model.name, model.outcome, sample = "baseline") {
 #
 ### Primary outcome: cert_basic (binary) ###
 .y = "cert_basic"
+
+# Note - we are presently constructing a calculation of "cert_basic" in MIT/Harvard, which is not automatically provided.
+# If such a calculation is not possible, then "cert_combined" will be the primary outcome for those two schools (but not Stanford)
+data$cert_combined <- 1*(((data$school=="Stanford")&(data$cert_basic==1))|((data$school!="Stanford")&(data$cert_verified==1)))
+#.y = "cert_combined"
+
 
 # Overall Effect of Interventions
 fit_model(model.name = "main.interaction", model.outcome = .y)
@@ -211,20 +217,16 @@ fit_model(model.name = "affirm.sex", model.outcome = .y, sample = "exposed")
 fit_model(model.name = "plan.original", model.outcome = .y, sample = "fluent_intent")
 fit_model(model.name = "plan.vs.plan", model.outcome = .y, sample = "fluent_intent")
 
-
 ### Secondary outcome course_progress (percentage) ###
 .y = "course_progress"
 # Run same models as for the primary outcome.
-
+# Note: This is not an official outcome tracked by EdX, and will require extensive preprocessing of tracking data.
+# This may not be consistent across courses/schools, and we will document all additional calculations, where possible. 
 
 ### Tertiary outcome likely_complete_1 (percentage) ###
 .y = "likely_complete_1"
 # Run same models as for the primary outcome.
-
-
-### Primary outcome (MIT/Harvard only) cert_verified (binary) ###
-.y = "cert_verified"
-.s = "baseline_HarvardMIT"
+# Note: This question is to test for the mechanism of the interventions, not a distinct or direct effect of the interventions
 
 # Overall Effect of Interventions
 fit_model(model.name = "main.interaction", model.outcome = .y, sample = .s)
