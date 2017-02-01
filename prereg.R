@@ -94,10 +94,7 @@ models[["main.interaction"]] = "affirm * (plans_long + plans_short) "
 ### Primary Analysis ###
 # Replication: Affirmation effect in low vs. high HDI countries
 # Expect: affirmation supports low-HDI learners
-models[["simple"]] = " affirm + (plans_long + plans_short)"
-
-samples[["high.hdi"]] = samples[["baseline"]] & data$highHDI == 1
-samples[["low.hdi"]] = samples[["baseline"]] & data$highHDI == 0
+models[["simple"]] = " affirm*highHDI + (plans_long + plans_short)"
 
 ### Secondary Analysis - Theory-driven Extensions ###
 
@@ -142,16 +139,10 @@ samples[["fluent_intent"]] = samples[["baseline"]] & (data$is_fluent == 1) & (da
 # Stanford does not offer verified certificates. So we can only test this in the Cantabridgian schools 
 
 samples[["baseline_HarvardMIT"]] = samples[["baseline"]] & data$school %in% c("Harvard","MIT")
-
-samples[["baseline_upgrades"]] = samples[["baseline_HarvardMIT"]] & data$enroll_verified == 0
-
-samples[["high.hdi_HarvardMIT"]] = samples[["high.hdi"]] & samples[["baseline_HarvardMIT"]]
-samples[["low.hdi_HarvardMIT"]] = samples[["low.hdi"]] & samples[["baseline_HarvardMIT"]]
 samples[["US.respondent_HarvardMIT"]] = samples[["US.respondent"]] & samples[["baseline_HarvardMIT"]]
 samples[["fluent_intent_HarvardMIT"]] = samples[["fluent_intent"]] & samples[["baseline_HarvardMIT"]]
 
-samples[["high.hdi_upgrades"]] = samples[["high.hdi"]] & samples[["baseline_upgrades"]]
-samples[["low.hdi_upgrades"]] = samples[["low.hdi"]] & samples[["baseline_upgrades"]]
+samples[["baseline_upgrades"]] = samples[["baseline_HarvardMIT"]] & data$enroll_verified == 0
 samples[["US.respondent_upgrades"]] = samples[["US.respondent"]] & samples[["baseline_upgrades"]]
 samples[["fluent_intent_upgrades"]] = samples[["fluent_intent"]] & samples[["baseline_upgrades"]]
 
@@ -227,20 +218,6 @@ fit_model = function(model.name, model.outcome, sample = "baseline") {
 # Note: We cannot measure this in our current data but we will calculate this column in a year (January 1, 2018)
 
 ####################################################################################
-# Additional exclusions
-####################################################################################
-#.s = "fluent_intent_HarvardMIT"
-# 
-# samples[["high.hdi_HarvardMIT"]]
-# samples[["low.hdi_HarvardMIT"]]
-# samples[["US.respondent_HarvardMIT"]]
-# samples[["fluent_intent_HarvardMIT"]]
-# 
-# samples[["high.hdi_upgrades"]]
-# samples[["low.hdi_upgrades"]]
-# samples[["US.respondent_upgrades"]]
-# samples[["fluent_intent_upgrades"]]
-####################################################################################
 # Models!
 ####################################################################################
 # Overall Effect of Interventions
@@ -248,8 +225,7 @@ fit_model(model.name = "main.interaction", model.outcome = .y)
 fit_model(model.name = "main.interaction", model.outcome = .y, sample = .s)
 
 # Affirmation - Primary Analysis
-fit_model(model.name = "simple", model.outcome = .y, sample = "low.hdi")
-fit_model(model.name = "simple", model.outcome = .y, sample = "high.hdi")
+fit_model(model.name = "simple", model.outcome = .y, sample = .s)
 
 # Affirmation - Secondary Analysis
 fit_model(model.name = "affirm.ses", model.outcome = .y)
