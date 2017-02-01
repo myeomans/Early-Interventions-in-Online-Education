@@ -20,7 +20,7 @@ samp = function(x, n = N, repl = T){
 # Simulate Initial Dataset
 #######################################################
 data = data.frame(id=samp(N, N, F),
-                  school=samp(1:3),
+                  school=samp(c("Stanford","Harvard","MIT")),
                   course=samp(1:35),
                   webservice_call_complete = samp(rep(0:1, c(1,99))),
                   intent_lecture=samp(1:4),
@@ -33,7 +33,7 @@ data = data.frame(id=samp(N, N, F),
                   yob=samp(1950:2000),
                   empstatus=samp(1:5),
                   teach=samp(c(0,1,13)),
-                  school=samp(0:1),
+                  in_school=samp(0:1),
                   educ=sample(1:10, N, replace=T, prob=c(.1, .1, .1, .4, rep(.05, 6))),
                   educ_parents=samp(1:10),
                   fluent=samp(1:5),
@@ -175,6 +175,7 @@ data$y_prob[data$y_prob>1] = 1
 data$cert_verified = rbinom(nrow(data), 1, data$y_prob)
 data$cert_basic = rbinom(nrow(data), 1, data$y_prob)
 data$upgrade_verified = rbinom(nrow(data), 1, data$y_prob)
+data$enroll_verified = rbinom(nrow(data), 1, data$y_prob)
 data$course_progress = 100 * data$y_prob
 data$likely_complete_1 = 100 * data$y_prob
 

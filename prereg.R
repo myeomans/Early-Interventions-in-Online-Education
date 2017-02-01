@@ -48,7 +48,6 @@ data = mutate(data,
 
 samples = list()
 samples[["baseline"]] = data$itt.sample # baseline
-samples[["baseline_HarvardMIT"]] = samples[["baseline"]] & data$school %in% c("Harvard","MIT")
 
 #######################################################
 #### Stratified and Nested Design ####
@@ -99,8 +98,6 @@ models[["simple"]] = " affirm + (plans_long + plans_short)"
 
 samples[["high.hdi"]] = samples[["baseline"]] & data$highHDI == 1
 samples[["low.hdi"]] = samples[["baseline"]] & data$highHDI == 0
-samples[["high.hdi_HarvardMIT"]] = samples[["high.hdi"]] & samples[["baseline_HarvardMIT"]]
-samples[["low.hdi_HarvardMIT"]] = samples[["low.hdi"]] & samples[["baseline_HarvardMIT"]]
 
 ### Secondary Analysis - Theory-driven Extensions ###
 
@@ -112,7 +109,6 @@ models[["affirm.ses"]] = " affirm * scale(10-educ_parents) + (plans_long + plans
 # Expect: affirmation supports US minority learners
 models[["affirm.minority"]] = " affirm * us_majority + (plans_long + plans_short)"
 samples[["US.respondent"]] = samples[["baseline"]] & !is.na(data$us_majority) # respondent in US 
-samples[["US.respondent_HarvardMIT"]] = samples[["US.respondent"]] & samples[["baseline_HarvardMIT"]]
 
 # Affirmation effect moderated by HDI and individual-level country social identity threat
 # Expect: affirmation supports learners in low HDI regions, especially those with high threat
@@ -137,10 +133,27 @@ models[["plan.original"]] = "affirm + (plans_long + plans_short)"
 models[["plan.vs.plan"]] = "affirm + (plans_any + plans_long)"
 
 # Define sample based on from previous plan-making intervention: 
-# Fluent English speakers who intend to complete all course assessments
+# Fluent English speakers who intend to complete most/all course assessments
 samples[["fluent_intent"]] = samples[["baseline"]] & (data$is_fluent == 1) & (data$intent_assess == 4)
+
+#######################################################
+# Harvard & MIT Only
+#######################################################
+# Stanford does not offer verified certificates. So we can only test this in the Cantabridgian schools 
+
+samples[["baseline_HarvardMIT"]] = samples[["baseline"]] & data$school %in% c("Harvard","MIT")
+
+samples[["baseline_upgrades"]] = samples[["baseline_HarvardMIT"]] & data$enroll_verified == 0
+
+samples[["high.hdi_HarvardMIT"]] = samples[["high.hdi"]] & samples[["baseline_HarvardMIT"]]
+samples[["low.hdi_HarvardMIT"]] = samples[["low.hdi"]] & samples[["baseline_HarvardMIT"]]
+samples[["US.respondent_HarvardMIT"]] = samples[["US.respondent"]] & samples[["baseline_HarvardMIT"]]
 samples[["fluent_intent_HarvardMIT"]] = samples[["fluent_intent"]] & samples[["baseline_HarvardMIT"]]
 
+samples[["high.hdi_upgrades"]] = samples[["high.hdi"]] & samples[["baseline_upgrades"]]
+samples[["low.hdi_upgrades"]] = samples[["low.hdi"]] & samples[["baseline_upgrades"]]
+samples[["US.respondent_upgrades"]] = samples[["US.respondent"]] & samples[["baseline_upgrades"]]
+samples[["fluent_intent_upgrades"]] = samples[["fluent_intent"]] & samples[["baseline_upgrades"]]
 
 #######################################################
 ####  Generalized Model Fitting Function #### 
@@ -172,28 +185,67 @@ fit_model = function(model.name, model.outcome, sample = "baseline") {
 }
 
 #######################################################
-#### Fitting Models #### 
+#### Outcomes #### 
 #######################################################
 #
 # The following analyses are structured based on the priorities specified above.
 # The priorities for outcome measures are as follows:
-# Primary outcomes: cert_basic (binary),
-# Secondary outcomes: course_progress (percentage), upgrade_verified (binary; Harvard/MIT only)
+# Primary outcomes: cert_basic (binary), course_progress (percentage)
+# Secondary outcomes: cert_verified, upgrade_verified (binary; Harvard/MIT only)
 # Tertiary outcome: likely_complete_1 (percentage)
 #
 # The 'baseline' ITT sample is used unless specified otherwise.
 #
 ### Primary outcome: cert_basic (binary) ###
 .y = "cert_basic"
+# Note: We are presently constructing a calculation of "cert_basic" which is not automatically provided by EdX at MIT & Harvard.
 
-# Note - we are presently constructing a calculation of "cert_basic" in MIT/Harvard, which is not automatically provided.
-# If such a calculation is not possible, then "cert_combined" will be the primary outcome for those two schools (but not Stanford)
-data$cert_combined <- 1*(((data$school=="Stanford")&(data$cert_basic==1))|((data$school!="Stanford")&(data$cert_verified==1)))
-#.y = "cert_combined"
+### Primary outcome: course_progress ###
+.y = "course_progress"
+# Note: This will require us to count the percentage of videos watched directly from the tracking data
+# The number of videos per course will vary across courses/schools, and we will document additional calculations, where necessary. 
 
+###### MIT/Harvard only ##############################
 
+### Secondary outcome: cert_verified (binary) ### (
+.y = "cert_verified"
+.s = "baseline_HarvardMIT"
+# Only MIT/Harvard have the outcome cert_verified.
+
+### Secondary outcome: upgrade_verified (binary) ###
+.y = "upgrade_verified"
+.s = "baseline_upgrades"
+# Remove everyone who verified before the pre-course survey
+######################################################
+
+### Tertiary outcome likely_complete_1 (percentage) ###
+ .y = "likely_complete_1"
+# Note: This question is to test for the mechanism of the interventions, not a distinct or direct effect of the interventions
+
+### Tertiary outcome future sign-ups (count) ###
+# .y = "future courses"
+# Note: We cannot measure this in our current data but we will calculate this column in a year (January 1, 2018)
+
+####################################################################################
+# Additional exclusions
+####################################################################################
+#.s = "fluent_intent_HarvardMIT"
+# 
+# samples[["high.hdi_HarvardMIT"]]
+# samples[["low.hdi_HarvardMIT"]]
+# samples[["US.respondent_HarvardMIT"]]
+# samples[["fluent_intent_HarvardMIT"]]
+# 
+# samples[["high.hdi_upgrades"]]
+# samples[["low.hdi_upgrades"]]
+# samples[["US.respondent_upgrades"]]
+# samples[["fluent_intent_upgrades"]]
+####################################################################################
+# Models!
+####################################################################################
 # Overall Effect of Interventions
 fit_model(model.name = "main.interaction", model.outcome = .y)
+fit_model(model.name = "main.interaction", model.outcome = .y, sample = .s)
 
 # Affirmation - Primary Analysis
 fit_model(model.name = "simple", model.outcome = .y, sample = "low.hdi")
@@ -213,24 +265,6 @@ fit_model(model.name = "affirm.csit", model.outcome = .y, sample = "exposed")
 fit_model(model.name = "affirm.lang", model.outcome = .y, sample = "exposed")
 fit_model(model.name = "affirm.sex", model.outcome = .y, sample = "exposed")
 
-# Plans - Primary Analysis (note: dropping intent_assess cov. from model for this subsample)
-fit_model(model.name = "plan.original", model.outcome = .y, sample = "fluent_intent")
-fit_model(model.name = "plan.vs.plan", model.outcome = .y, sample = "fluent_intent")
-
-### Secondary outcome course_progress (percentage) ###
-.y = "course_progress"
-# Run same models as for the primary outcome.
-# Note: This is not an official outcome tracked by EdX, and will require extensive preprocessing of tracking data.
-# This may not be consistent across courses/schools, and we will document all additional calculations, where possible. 
-
-### Tertiary outcome likely_complete_1 (percentage) ###
-.y = "likely_complete_1"
-# Run same models as for the primary outcome.
-# Note: This question is to test for the mechanism of the interventions, not a distinct or direct effect of the interventions
-
-# Overall Effect of Interventions
-fit_model(model.name = "main.interaction", model.outcome = .y, sample = .s)
-
 # Affirmation - Primary Analysis
 fit_model(model.name = "simple", model.outcome = .y, sample = "low.hdi_HarvardMIT")
 fit_model(model.name = "simple", model.outcome = .y, sample = "high.hdi_HarvardMIT")
@@ -242,16 +276,11 @@ fit_model(model.name = "affirm.csit", model.outcome = .y, sample = .s)
 fit_model(model.name = "affirm.lang", model.outcome = .y, sample = .s)
 fit_model(model.name = "affirm.sex", model.outcome = .y, sample = .s)
 
+#######################################################
 # Plans - Primary Analysis (note: dropping intent_assess cov. from model for this subsample)
-fit_model(model.name = "plan.original", model.outcome = .y, sample = "HarvardMIT_fluent_intent")
-fit_model(model.name = "plan.vs.plan", model.outcome = .y, sample = "HarvardMIT_fluent_intent")
-
-
-### Secondary outcome (MIT/Harvard only) upgrade_verified (binary) ###
-.y = "upgrade_verified"
-.s = "baseline_HarvardMIT"
-# Run same models as for MIT/Harvard only outcome cert_verified.
-
+#######################################################
+fit_model(model.name = "plan.original", model.outcome = .y, sample = "fluent_intent")
+fit_model(model.name = "plan.vs.plan", model.outcome = .y, sample = "fluent_intent")
 
 #######################################################
 #### Descriptive Statistics #### 
@@ -263,9 +292,10 @@ data %>%
   group_by(affirm, plans) %>%
   summarise(
     N = n(),
-    N_harvardMIT = sum(school %in% (1:2)),
+    N_harvardMIT = sum(school %in% c("Harvard","MIT")),
     cert_basic = mean(cert_basic),
     cert_verified = mean(cert_verified, na.rm=T),
+    enroll_verified = mean(enroll_verified, na.rm=T),
     upgrade_verified = mean(upgrade_verified, na.rm=T),
     avg_course_progress = mean(course_progress),
     avg_age = mean(2017 - yob),
