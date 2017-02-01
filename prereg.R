@@ -258,13 +258,6 @@ fit_model(model.name = "affirm.csit", model.outcome = .y)
 fit_model(model.name = "affirm.lang", model.outcome = .y)
 fit_model(model.name = "affirm.sex", model.outcome = .y)
 
-# Affirmation - Tertiary Analysis With All Exposed Sample
-fit_model(model.name = "affirm.ses", model.outcome = .y, sample = "exposed")
-fit_model(model.name = "affirm.minority", model.outcome = .y, sample = "exposed", sample = "US.respondent")
-fit_model(model.name = "affirm.csit", model.outcome = .y, sample = "exposed")
-fit_model(model.name = "affirm.lang", model.outcome = .y, sample = "exposed")
-fit_model(model.name = "affirm.sex", model.outcome = .y, sample = "exposed")
-
 # Affirmation - Primary Analysis
 fit_model(model.name = "simple", model.outcome = .y, sample = "low.hdi_HarvardMIT")
 fit_model(model.name = "simple", model.outcome = .y, sample = "high.hdi_HarvardMIT")
