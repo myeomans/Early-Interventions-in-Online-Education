@@ -1,52 +1,54 @@
 #######################################################
-#
-#  Preregistration for "Joint Interventions at Scale"
-#  Discovery of Heterogeneous Treatment Effects
+###                                                 ###
+#     "Early Interventions in Online Education"       #
+#    Discovery of Heterogeneous Treatment Effects     #
+#                   02/01/2017                        #
+###                                                 ###
 #######################################################
 
 #setwd("~/git/Joint-Interventions-At-Scale/")
 require(sparsereg)
 require(dplyr)
 
+# Loading simulated dataset
 load("simdat.rda")
 
 #######################################################
-# Sample Selection and Data Transformation
+### Sample Selection and Data Transformation        ###
 #######################################################
-
-# Selecting ITT sample as in prereg.R analyses
+#
+# Selecting baseline sample just as in prereg.R analyses
 data = ungroup(data %>% 
-  group_by(id) %>% 
-  arrange(survey_timestamp) %>% 
-  mutate(
-    first.exposure = row_number() == 1,
-    num.exposures = n(),
-    days.to.next.exposure = ifelse(n() > 1, diff(survey_timestamp)[1] / (60*60*24), 0),
-    clean.exposure = first.exposure & (num.exposures == 1 | days.to.next.exposure > 29)
-  ))
+    filter(webservice_call_complete == 1 & !is.na(affirm) & !is.na(plans)) %>%
+    group_by(id) %>% 
+    arrange(survey_timestamp) %>% 
+    mutate(
+      first.exposure = row_number() == 1,
+      num.exposures = n(),
+      days.to.next.exposure = ifelse(num.exposures > 1, diff(survey_timestamp)[1] / (60*60*24), 0),
+      clean.exposure = first.exposure & (num.exposures == 1 | days.to.next.exposure > 29)
+    ))
 
 analysis_timestamp = 1487145600 # e.g. 2/15/2017
 data = mutate(data,
-  exposed.to.treat = (webservice_call_complete == 1) & (!is.na(affirm)) & (!is.na(plans)), # a.
-  survey.delay = (survey_timestamp - first_activity_timestamp) / (60*60), # c.
-  days.from.start = (first_activity_timestamp - course_start_timestamp) / (60*60*24), # d1.
-  days.to.analysis = (analysis_timestamp - first_activity_timestamp) / (60*60*24), # d2.
-  itt.sample = exposed.to.treat & # a.
-    clean.exposure & # b.
-    (survey.delay < 1) & # c.
-    ((course_selfpaced & (days.to.analysis > 29)) | ((!course_selfpaced) & (days.from.start < 15))) # d1|d2
-  )
+   survey.delay = (survey_timestamp - first_activity_timestamp) / (60*60), # b.
+   days.from.start = (first_activity_timestamp - course_start_timestamp) / (60*60*24), # c1.
+   days.to.analysis = (analysis_timestamp - first_activity_timestamp) / (60*60*24), # c2.
+   itt.sample = clean.exposure & # a.
+     (survey.delay < 1) & # b.
+     ((course_selfpaced & (days.to.analysis > 29)) | ((!course_selfpaced) & (days.from.start < 15))) # c1|c2
+)
 
-data %>% filter(itt.sample)
+data = data %>% filter(itt.sample)
 
 # Transforming variables for sparse model
 data = data %>% mutate(
   age = 2017 - yob,
-  educ_phd = educ == 1,
-  educ_ma_prof = educ %in% (2:3),
-  educ_ba = educ == 4,
-  educ_some_he = educ %in% (5:6),
-  more_educ_than_parents = educ < educ_parents,
+  educ_phd = educ == 9,
+  educ_ma_prof = educ %in% (7:8),
+  educ_ba = educ == 6,
+  educ_some_he = educ %in% (4:5),
+  more_educ_than_parents = educ > educ_parents,
   is_teacher = teach == 1,
   is_employed = empstatus == 1,
   is_unemployed = empstatus == 2,
@@ -66,9 +68,8 @@ covariates = c("intent_lecture", "intent_assess", "hours", "crs_finish",
 
 treatments = c("affirm", "plans_short", "plans_long")
 
-
 #######################################################
-# Fitting Sparsereg Model and Evaluating Results
+### Fitting Sparsereg Model and Evaluating Results  ###
 #######################################################
 
 SPR = sparsereg(
@@ -80,7 +81,8 @@ SPR = sparsereg(
     # id3 = "id",
     type = "probit",
     EM = F,
-    scale.type = "TTX"
+    scale.type = "TTX",
+    conservative = F
   )
 
 summary(SPR)
