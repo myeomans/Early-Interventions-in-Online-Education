@@ -46,42 +46,34 @@ fit_model = function(model.name, model.outcome, sample = "baseline") {
 ###  Sample Selection                               ###
 #######################################################
 #
-# We exclude respondents who did not progress far enough in
-# the survey to be randomly assined and exposed to condition.
+#  As we record all learners who started the course survey, we impose a set of 
+#  exclusion criteria to define our sample of interest. The learner must have:
+#  a. progressed far enough in the survey to be randomized and exposed to condition,
+#  b. been exposed just once in the first 30 days following initial exposure,
+#  c. started the survey within the first hour of their first timestamp in the course,
+#  d1. started a cohort-based course in its first 14 days, OR
+#  d2. started a self-paced course before the last 30 days
 #
-# We define 'clean exposure' in terms of first exposure to treatment, 
-# number of exposures, and days to second exposure. A clean exposure is one 
-# where a learner was exposed just once; or, if they were repeatedly exposed 
-# in the same or in other courses and the second exposure occurred at least
-# 29 days after the first, then the first exposure is also clean.
-#
-data = ungroup(data %>% 
-  filter(webservice_call_complete == 1 & !is.na(affirm) & !is.na(plans)) %>%
+.analysis_timestamp = 1487145600 # e.g. 2/15/2017
+
+data = ungroup(data %>%
+  filter(webservice_call_complete == 1 & !is.na(affirm) & !is.na(plans)) %>% # a.
   group_by(id) %>% 
   arrange(survey_timestamp) %>% 
   mutate(
     first.exposure = row_number() == 1,
     num.exposures = n(),
     days.to.next.exposure = ifelse(num.exposures > 1, diff(survey_timestamp)[1] / (60*60*24), 0),
-    clean.exposure = first.exposure & (num.exposures == 1 | days.to.next.exposure > 29)
-  ))
-#
-#  As we record all learners who started the course survey, we impose a set of 
-#  exclusion criteria to define our sample of interest. The learner must have ...
-#  a. completed enough of the survey to be randomized and exposed to condition cleanly (as defined above),
-#  b. started the survey within the first hour of their first timestamp in the course,
-#  c1. started a cohort-based course in its first 14 days, OR
-#  c2. started a self-paced course before the last 30 days
-#
-analysis_timestamp = 1487145600 # e.g. 2/15/2017
-data = mutate(data,
-  survey.delay = (survey_timestamp - first_activity_timestamp) / (60*60), # b.
-  days.from.start = (first_activity_timestamp - course_start_timestamp) / (60*60*24), # c1.
-  days.to.analysis = (analysis_timestamp - first_activity_timestamp) / (60*60*24), # c2.
-  itt.sample = clean.exposure & # a.
-    (survey.delay < 1) & # b.
-    ((course_selfpaced & (days.to.analysis > 29)) | ((!course_selfpaced) & (days.from.start < 15))) # c1|c2
-)
+    clean.exposure = first.exposure & (num.exposures == 1 | days.to.next.exposure > 29), # for b.
+    survey.delay = (survey_timestamp - first_activity_timestamp) / (60*60), # for c.
+    days.from.start = (first_activity_timestamp - course_start_timestamp) / (60*60*24), # for d1.
+    days.to.analysis = (.analysis_timestamp - first_activity_timestamp) / (60*60*24), # for d2.
+    itt.sample = 
+      clean.exposure & # b.
+      (survey.delay < 1) & # c.
+      ((course_selfpaced & (days.to.analysis > 29)) | # d1.
+         ((!course_selfpaced) & (days.from.start < 15))) # d2.
+))
 
 samples = list()
 samples[["baseline"]] = data$itt.sample # baseline
@@ -133,8 +125,9 @@ models[["main.interaction"]] = "affirm * (plans_long + plans_short)"
 ### Primary Analysis - Replicating Prior Findings ###
 #
 # Affirmation effect in low vs. high HDI countries
-# Expect: a. affirmation supports low-HDI learners; 
-# b. affirmation has no, or a small negative, effect on high-HDI
+# Hypothesis 1a. affirmation supports low-HDI learners (positive coef on affirm)
+# Hypothesis 1b. gap between high vs. low HDI regions (positive coef on highHDI)
+# Hypothesis 1c. affirmation doesn't support high-HDI learners (negative coef on affirm:highHDI)
 models[["simple"]] = "affirm * highHDI + (plans_long + plans_short)"
 
 ### Secondary Analysis - Multiple Theory-driven Extensions ###
