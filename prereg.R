@@ -14,7 +14,36 @@ require(dplyr)
 load("simdat.rda")
 
 #######################################################
-#### Sample Selection                              ####
+###   Generalized Model Fitting Function            ### 
+#######################################################
+fit_model = function(model.name, model.outcome, sample = "baseline") {
+  
+  # Select relevant sample for model
+  model.data = data[samples[[sample]],]
+  
+  # Set Y to be the outcome of interest
+  model.data$Y = unlist(model.data[,model.outcome])
+  
+  # Estimate model parameters using maximum likelihood
+  if (mean(model.data$Y %in% (0:1)) == 1){
+    # generalized linear mixed-effects model (logistic) for for binary Y
+    model.fit = glmer(formula(paste("Y ~", models[[model.name]], strata)),
+                      data = model.data,
+                      family = "binomial",
+                      nAGQ = 0, 
+                      control = glmerControl(optimizer = "nloptwrap"))
+    
+  } else {
+    # linear mixed-effects model for non-binary Y
+    model.fit = lmer(formula(paste("Y ~", models[[model.name]], strata)), 
+                     data = model.data)
+  }
+  
+  summary(model.fit)
+}
+
+#######################################################
+###  Sample Selection                               ###
 #######################################################
 #
 # We exclude respondents who did not progress far enough in
@@ -58,7 +87,7 @@ samples = list()
 samples[["baseline"]] = data$itt.sample # baseline
 
 #######################################################
-#### Stratified and Nested Design                  ####
+###  Stratified and Nested Design                   ###
 #######################################################
 #
 # The data are collected from a series of treatments embedded in a single procedure that was 
@@ -74,7 +103,7 @@ samples[["baseline"]] = data$itt.sample # baseline
 strata = "+ intent_assess + hours + crs_finish + educ + (1 | school/course) + (1 | strata)"
 
 #######################################################
-#### Randomized Treatments                         ####
+### Randomized Treatments                           ###
 #######################################################
 #
 # Learners were randomized into cells in a 2x3 between-subjects design.
@@ -112,7 +141,7 @@ models[["simple"]] = "affirm * highHDI + (plans_long + plans_short)"
 #
 # Affirmation effect by socioeconomic status (based on parental education)
 # Expect: affirmation supports low-SES learners
-models[["affirm.ses"]] = "affirm * scale(educ_parents) + (scle(HDI) + plans_long + plans_short)"
+models[["affirm.ses"]] = "affirm * scale(educ_parents) + (scale(HDI) + plans_long + plans_short)"
 
 # Affirmation effect for US racial-ethnic minorities (majority = white/asian/non-hispanic)
 # Expect: affirmation supports US minority learners
@@ -130,7 +159,7 @@ models[["affirm.lang"]] = "affirm * highHDI * is_fluent + (plans_long + plans_sh
 # Affirmation effect by gender and course gender ratio
 # Expect: affirmation supports female learners in male-dominated courses (<25% women)
 data = ungroup(data %>% group_by(course) %>% mutate(male_dom_course = mean(gender_female) < .25))
-models[["affirm.sex"]] = "affirm * gender_female * male_dom_course + (scle(HDI) + plans_long + plans_short)"
+models[["affirm.sex"]] = "affirm * gender_female * male_dom_course + (scale(HDI) + plans_long + plans_short)"
 
 #######################################################
 ### Planned analyses for Plan-Making                ###
@@ -146,7 +175,7 @@ models[["plan.vs.plan"]] = "plans_any + plans_long + affirm"
 samples[["fluent_intent"]] = samples[["baseline"]] & (data$is_fluent == 1) & (data$intent_assess == 4)
 
 #######################################################
-### Outcomes Measures and Special Samples          #### 
+### Outcomes Measures and Special Samples           ### 
 #######################################################
 #
 # The following analyses are structured based on the priorities specified above.
@@ -192,35 +221,6 @@ samples[["fluent_intent_upgrades"]] = samples[["fluent_intent"]] & samples[["bas
 # Note: We cannot measure this in our current data but we will calculate it in a year (January 1, 2018)
 
 #######################################################
-####  Generalized Model Fitting Function           #### 
-#######################################################
-fit_model = function(model.name, model.outcome, sample = "baseline") {
-  
-  # Select relevant sample for model
-  model.data = data[samples[[sample]],]
-  
-  # Set Y to be the outcome of interest
-  model.data$Y = unlist(model.data[,model.outcome])
-  
-  # Estimate model parameters
-  if (mean(model.data$Y %in% (0:1)) == 1){
-    # for binary Y
-    model.fit = glmer(formula(paste("Y ~", models[[model.name]], strata)),
-                      data = model.data,
-                      family = "binomial",
-                      nAGQ = 0, 
-                      control = glmerControl(optimizer = "nloptwrap"))
-    
-  } else {
-    # for non-binary Y
-    model.fit = lmer(formula(paste("Y ~", models[[model.name]], strata)), 
-                     data = model.data)
-  }
-  
-  summary(model.fit)
-}
-
-#######################################################
 ###  Model Estimation                               ###
 #######################################################
 #
@@ -232,15 +232,15 @@ fit_model(model.name = "simple", model.outcome = .y, sample = .s)
 
 ### Affirmation - Secondary Analyses ###
 fit_model(model.name = "affirm.ses", model.outcome = .y, sample = .s)
-fit_model(model.name = "affirm.minority", model.outcome = .y, sample = "US.respondent")
 fit_model(model.name = "affirm.csit", model.outcome = .y, sample = .s)
 fit_model(model.name = "affirm.lang", model.outcome = .y, sample = .s)
 fit_model(model.name = "affirm.sex", model.outcome = .y, sample = .s)
+fit_model(model.name = "affirm.minority", model.outcome = .y, sample = "US.respondent") #_HarvardMIT
 
 ### Plan-making - Primary Analyses ###
 # Note: Automatically dropping 'intent_assess' covariate from model for this sample
-fit_model(model.name = "plan.original", model.outcome = .y, sample = "fluent_intent")
-fit_model(model.name = "plan.vs.plan", model.outcome = .y, sample = "fluent_intent")
+fit_model(model.name = "plan.original", model.outcome = .y, sample = "fluent_intent") #_HarvardMIT
+fit_model(model.name = "plan.vs.plan", model.outcome = .y, sample = "fluent_intent") #_HarvardMIT
 
 #######################################################
 ### Descriptive Statistics                          ### 
