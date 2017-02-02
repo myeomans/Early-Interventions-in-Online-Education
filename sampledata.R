@@ -143,6 +143,10 @@ data$us_majority = as.numeric((data$us_race %in% c(1, 4)) & data$us_ethnicity ==
 # Binary indicator for self-paced (vs. cohort-based) courses
 data$course_selfpaced = data$course %in% (1:5)
 
+# Reverse coding of education and parental education variables
+data$educ = 10 - data$educ
+data$educ_parents = 10 - data$educ_parents
+
 #######################################################
 # Simulate Outcome Measures with Treatment Effects
 #######################################################
@@ -156,7 +160,8 @@ error_sd = .1
 
 # Encode strata covariates and school/course effects in sigmoid
 sig = 1/(1+exp(-rowMeans(scale(
-  ungroup(data) %>% select(intent_assess, hours, crs_finish, educ, school, course) %>% mutate(educ=10-educ) ))))
+  ungroup(data) %>% select(intent_assess, hours, crs_finish, educ, school, course) %>% 
+    mutate(school = as.numeric(factor(school))) ))))
 
 # Simulate probability of certification
 data$y_prob = baseline + 
