@@ -72,16 +72,17 @@ treatments = c("affirm", "plans_short", "plans_long")
 ### Fitting Sparsereg Model and Evaluating Results  ###
 #######################################################
 
+# Fitting linear probability instead of probit model for 
+# binary outcome for increased interpretability
 SPR = sparsereg(
     y = data$cert_basic, 
     X = data.matrix(data[, covariates]), 
     treat = data[, treatments],
     id = data$course,
     id2 = data$strata,
-    # id3 = "id",
-    type = "probit",
+    type = "linear",
     EM = F,
-    scale.type = "TTX",
+    scale.type = "TX",
     conservative = F
   )
 
