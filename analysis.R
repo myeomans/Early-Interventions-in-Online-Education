@@ -150,8 +150,8 @@ models[["affirm.csit"]] = "affirm * highHDI * scale(threat_country) + (plans_lon
 models[["affirm.lang"]] = "affirm * highHDI * is_fluent + (plans_long + plans_short)"
 
 # Affirmation effect by gender and course gender ratio
-# Expect: affirmation supports female learners in male-dominated courses (<25% women)
-data = ungroup(data %>% group_by(course) %>% mutate(male_dom_course = mean(gender_female) < .25))
+# Expect: affirmation supports female learners in male-dominated (<20% women) courses
+data = ungroup(data %>% group_by(course) %>% mutate(male_dom_course = mean(gender_female) < .2))
 models[["affirm.sex"]] = "affirm * gender_female * male_dom_course + (scale(HDI) + plans_long + plans_short)"
 
 #######################################################
