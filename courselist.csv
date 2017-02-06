@@ -1,0 +1,4 @@
+"school","course_id","short_name","year_term","number","name","start","end","on_demand","course_url"
+"HarvardX","course-v1:HarvardX+HUM12x+3T2016","HUM12x","3T2016","HUM12x","Masterpieces of World Literature","2016-09-22T16:00:00Z","2016-12-23T23:30:00Z",0,"https://www.edx.org/course/masterpieces-world-literature-harvardx-hum12x"
+"HarvardX","course-v1:HarvardX+HLS3x+3T2016","HLS3x","3T2016","HLS3x","JuryX: Deliberations for Social Change","2016-09-27T18:56:00Z","2016-11-15T20:00:00Z",0,"https://www.edx.org/course/juryx-deliberations-social-change-harvardx-hls3x-0"
+"Harvardx","course-v1:Harvardx+HLS2X+3T2016","HLS2X","3T2016","HLS2X","ContractsX 2016","2016-11-01T16:00:00Z","2017-01-09T23:30:00Z",1,"https://www.edx.org/course/contract-law-trust-promise-contract-harvardx-hls2x-2"
