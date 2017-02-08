@@ -54,6 +54,9 @@ data = data %>% mutate(
   is_unemployed = empstatus == 2,
   is_ft_student = empstatus == 3,
   is_pt_student = (school == 1) & (school_ftpt == 0),
+  is_blended = (school == 1) & (school_online > 2),
+  is_hs_student = (school == 1) & (school_level %in% 1:3),
+  is_college_student = (school == 1) & (school_level %in% 4:6),
   born_in_US = pob == 187
 )
 
@@ -61,6 +64,7 @@ covariates = c("intent_lecture", "intent_assess", "hours", "crs_finish",
                "goal_setting", "fam", "educ_parents", "age", "gender_female", "gender_other",
                "educ_phd", "educ_ma_prof", "educ_ba", "educ_some_he", "more_educ_than_parents",
                "is_teacher", "is_employed", "is_unemployed", "is_ft_student", "is_pt_student",
+               "is_college_student","is_hs_student","is_blended",
                "fluent", "threat_country", "olei_interest", "olei_job", "olei_degree",
                "olei_research", "olei_growth", "olei_career", "olei_fun", "olei_social",
                "olei_experience", "olei_certificate", "olei_uniprof", "olei_peer", 
@@ -89,12 +93,5 @@ SPR = sparsereg(
 summary(SPR)
 plot(SPR)
 violinplot(SPR)
-
-round(SPR$beta.mean[1,], 3)
-round(SPR$beta.mode[1,], 3)
-
-# Could use glmnet cross-validated LASSO for comparison
-# require(glmnet)
-# coef(cv.glmnet(x=SPR$X, y=SPR$y), s="lambda.1se")
 
 #######################################################
