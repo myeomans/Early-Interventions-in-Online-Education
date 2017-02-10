@@ -60,6 +60,8 @@ data = data %>% mutate(
   born_in_US = pob == 187
 )
 
+data[(data$school==0)&(!is.na(data$school),c("is_blended","is_ft_student","is_pt_student","is_hs_student","is_college_student")]<-0
+
 covariates = c("intent_lecture", "intent_assess", "hours", "crs_finish",
                "goal_setting", "fam", "educ_parents", "age", "gender_female", "gender_other",
                "educ_phd", "educ_ma_prof", "educ_ba", "educ_some_he", "more_educ_than_parents",
