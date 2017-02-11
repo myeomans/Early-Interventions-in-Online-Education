@@ -53,14 +53,12 @@ data = data %>% mutate(
   is_employed = empstatus == 1,
   is_unemployed = empstatus == 2,
   is_ft_student = empstatus == 3,
-  is_pt_student = (school == 1) & (school_ftpt == 0),
-  is_blended = (school == 1) & (school_online > 2),
-  is_hs_student = (school == 1) & (school_level %in% 1:3),
-  is_college_student = (school == 1) & (school_level %in% 4:6),
+  is_pt_student = school == 1 & school_ftpt == 0,
+  is_blended = school == 1 & school_online > 2,
+  is_hs_student = school == 1 & school_lev %in% (1:3),
+  is_college_student = school == 1 & school_lev %in% (4:6),
   born_in_US = pob == 187
 )
-
-data[(data$school==0)&(!is.na(data$school),c("is_blended","is_ft_student","is_pt_student","is_hs_student","is_college_student")]<-0
 
 covariates = c("intent_lecture", "intent_assess", "hours", "crs_finish",
                "goal_setting", "fam", "educ_parents", "age", "gender_female", "gender_other",
