@@ -158,13 +158,20 @@ models[["affirm.sex"]] = "affirm * gender_female * male_dom_course + (scale(HDI)
 ### Planned analyses for Plan-Making                ###
 #######################################################
 #
+# Plan-making treatment effects test these research questions:
+#
+# Does short-term plan-making increase course completion over baseline?
+# Does long-term plan-making increase course completion over baseline?
+
+# Previous plan-making interventions had pre-registered a subgroup for analysis:
+# - Fluent English speakers, so that the task would not be effortful
+# - Students who intend to complete most/all course assessments, as a masure of follow-through
+
 ### Primary Analysis ###
 data$plans_any = as.numeric(data$plans > 0)
 models[["plan.original"]] = "plans_long + plans_short + affirm"
 models[["plan.vs.plan"]] = "plans_any + plans_long + affirm"
 
-# Define sample based on from previous plan-making intervention: 
-# Fluent English speakers who intend to complete most/all course assessments
 samples[["fluent_intent"]] = samples[["baseline"]] & (data$is_fluent == 1) & (data$intent_assess == 4)
 
 #######################################################
