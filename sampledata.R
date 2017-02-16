@@ -22,7 +22,7 @@ samp = function(x, n = N, repl = T){
 # Simulate Initial Dataset
 #######################################################
 data = data.frame(id = samp(N, N, F),
-                  school = samp(c("Stanford", "Harvard", "MIT")),
+                  institution = samp(c("Stanford", "Harvard", "MIT")),
                   course = samp(1:35),
                   webservice_call_complete = samp(rep(0:1, c(1,99))),
                   intent_lecture = samp(1:4),
@@ -35,32 +35,37 @@ data = data.frame(id = samp(N, N, F),
                   yob = samp(1950:2000),
                   empstatus = samp(1:5),
                   teach = samp(c(0,1,13)),
-                  in_school = samp(0:1),
+                  school = samp(0:1),
                   educ = sample(1:10, N, replace = T, prob = c(.1, .1, .1, .4, rep(.05, 6))),
                   educ_parents = samp(1:10),
                   fluent = samp(1:5),
                   pob = samp(c(0:193, 580, 1357)),
                   threat_country = samp(1:5),
                   us_ethnicity = samp(1:3),
-                  us_race = samp(1:6),
+                  us_race_1 = samp(0:1),
+                  us_race_2 = samp(0:1),
+                  us_race_3 = samp(0:1),
+                  us_race_4 = samp(0:1),
+                  us_race_5 = samp(0:1),
+                  us_race_6 = samp(0:1),
                   industry = samp(0:22),
                   occupation = samp(0:14),
                   school_ftpt = samp(0:1),
                   school_online = samp(1:4),
                   school_lev = samp(1:7),
-                  olei_interest = samp(0:1),
-                  olei_job = samp(0:1),
-                  olei_degree = samp(0:1),
-                  olei_research = samp(0:1),
-                  olei_growth = samp(0:1),
-                  olei_career = samp(0:1),
-                  olei_fun = samp(0:1),
-                  olei_social = samp(0:1),
-                  olei_experience = samp(0:1),
-                  olei_certificate = samp(0:1),
-                  olei_uniprof = samp(0:1),
-                  olei_peer = samp(0:1),
-                  olei_language = samp(0:1),
+                  olei_olei_interest = samp(0:1),
+                  olei_olei_job = samp(0:1),
+                  olei_olei_degree = samp(0:1),
+                  olei_olei_research = samp(0:1),
+                  olei_olei_growth = samp(0:1),
+                  olei_olei_career = samp(0:1),
+                  olei_olei_fun = samp(0:1),
+                  olei_olei_social = samp(0:1),
+                  olei_olei_experience = samp(0:1),
+                  olei_olei_certificate = samp(0:1),
+                  olei_olei_uniprof = samp(0:1),
+                  olei_olei_peer = samp(0:1),
+                  olei_olei_language = samp(0:1),
                   affirm_values_1 = samp(0:1),
                   affirm_values_2 = samp(0:1),
                   affirm_values_3 = samp(0:1),
@@ -73,7 +78,6 @@ data = data.frame(id = samp(N, N, F),
                   affirm_values_10 = samp(0:1),
                   affirm_values_11 = samp(0:1),
                   affirm_values_12 = samp(0:1),
-                  affirm_values_13 = samp(0:1),
                   affirm_choice_time_3 = samp(0:600),
                   affirm_write_time_3 = samp(0:600),
                   shortplans_time_3 = samp(0:600),
@@ -140,7 +144,8 @@ data$gender_other = as.numeric(data$sex == 3)
 
 # Binary indicators for U.S. racial-ethnic majority
 # Defined as White or Asian, and Non-Hispanic
-data$us_majority = as.numeric((data$us_race %in% c(1, 4)) & data$us_ethnicity == 1)
+data$us_majority = as.numeric((data$us_race_1 == 1 | data$us_race_4 == 1) & 
+    data$us_ethnicity == 1)
 
 # Binary indicator for self-paced (vs. cohort-based) courses
 data$course_selfpaced = data$course %in% (1:5)
@@ -160,10 +165,10 @@ eff_plan_lg = .05
 eff_inter = .025
 error_sd = .1
 
-# Encode strata covariates and school/course effects in sigmoid
+# Encode strata covariates and institution/course effects in sigmoid
 sig = 1 / (1 + exp(-rowMeans(scale(
-  ungroup(data) %>% select(intent_assess, hours, crs_finish, educ, school, course) %>% 
-    mutate(school = as.numeric(factor(school))) ))))
+  ungroup(data) %>% select(intent_assess, hours, crs_finish, educ, institution, course) %>% 
+    mutate(institution = as.numeric(factor(institution))) ))))
 
 # Simulate probability of certification
 data$y_prob = baseline + 

@@ -83,16 +83,16 @@ samples[["baseline"]] = data$itt.sample # baseline
 #######################################################
 #
 # The data are collected from a series of treatments embedded in a single procedure that was 
-# replicated in many courses, across several schools. Additionally, assignment to treatment
+# replicated in many courses, across several institutions. Additionally, assignment to treatment
 # was stratified across four covariates collected early in the survey. 
 #
 # Stratification variables: intent_assess, hours, crs_finish, educ
 # Stratified: strata_intent_assess (2 levels), strata_hours (2), strata_crs_finish (3), strata_educ (3)
 # Strata encoding variables: strata {strata_intent_assess, strata_hours, strata_crs_finish, strata_educ}
-# Additional nesting variables: school, course
+# Additional nesting variables: institution, course
 #
-# In every model we control for strata covariates; and nesting within strata, course and school
-strata = "+ intent_assess + hours + crs_finish + educ + (1 | school/course) + (1 | strata)"
+# In every model we control for strata covariates; and nesting within strata, course and institution
+strata = "+ intent_assess + hours + crs_finish + educ + (1 | institution/course) + (1 | strata)"
 
 #######################################################
 ### Randomized Treatments                           ###
@@ -199,7 +199,7 @@ samples[["fluent_intent"]] = samples[["baseline"]] & (data$is_fluent == 1) & (da
 .y = "cert_verified"
 .s = "baseline_HarvardMIT"
 # Note: MIT/Harvard only - defining specific sample that excludes learners in Stanford courses
-samples[["baseline_HarvardMIT"]] = samples[["baseline"]] & data$school %in% c("Harvard","MIT")
+samples[["baseline_HarvardMIT"]] = samples[["baseline"]] & data$institution %in% c("Harvard","MIT")
 samples[["US.respondent_HarvardMIT"]] = samples[["US.respondent"]] & samples[["baseline_HarvardMIT"]]
 samples[["fluent_intent_HarvardMIT"]] = samples[["fluent_intent"]] & samples[["baseline_HarvardMIT"]]
 
@@ -252,7 +252,7 @@ data %>%
   group_by(affirm, plans) %>%
   summarise(
     N = n(),
-    N_harvardMIT = sum(school %in% c("Harvard","MIT")),
+    N_harvardMIT = sum(institution %in% c("Harvard","MIT")),
     cert_basic = mean(cert_basic),
     cert_verified = mean(cert_verified, na.rm=T),
     enroll_verified = mean(enroll_verified, na.rm=T),

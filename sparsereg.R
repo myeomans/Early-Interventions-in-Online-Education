@@ -64,11 +64,11 @@ covariates = c("intent_lecture", "intent_assess", "hours", "crs_finish",
                "goal_setting", "fam", "educ_parents", "age", "gender_female", "gender_other",
                "educ_phd", "educ_ma_prof", "educ_ba", "educ_some_he", "more_educ_than_parents",
                "is_teacher", "is_employed", "is_unemployed", "is_ft_student", "is_pt_student",
-               "is_college_student","is_hs_student","is_blended",
-               "fluent", "threat_country", "olei_interest", "olei_job", "olei_degree",
-               "olei_research", "olei_growth", "olei_career", "olei_fun", "olei_social",
-               "olei_experience", "olei_certificate", "olei_uniprof", "olei_peer", 
-               "olei_language", "HDI4", "born_in_US")
+               "is_college_student","is_hs_student","is_blended", "fluent", "threat_country", 
+               "olei_olei_interest", "olei_olei_job", "olei_olei_degree", "olei_olei_research", 
+               "olei_olei_growth", "olei_olei_career", "olei_olei_fun", "olei_olei_social",
+               "olei_olei_experience", "olei_olei_certificate", "olei_olei_uniprof", 
+               "olei_olei_peer", "olei_olei_language", "HDI4", "born_in_US")
 
 treatments = c("affirm", "plans_short", "plans_long")
 
